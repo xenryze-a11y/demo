@@ -1,0 +1,13 @@
+{
+  "name": "cathedral-of-ash",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/server.mjs",
+    "build": "node tools/build.mjs",
+    "preview": "node tools/server.mjs dist"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

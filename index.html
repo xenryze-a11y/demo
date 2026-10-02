@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="theme-color" content="#090a0d" />
+    <title>灰烬圣堂 · Cathedral of Ash</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main id="game-shell">
+      <canvas id="game" aria-label="灰烬圣堂游戏画面"></canvas>
+      <section id="start" class="modal">
+        <div class="sigil">†</div><p class="eyebrow">A DARK FANTASY ACTION RPG</p>
+        <h1>灰烬圣堂</h1><p class="subtitle">CATHEDRAL OF ASH</p>
+        <p class="lore">钟声已沉寂百年，墓穴里的死者却从未安眠。<br>穿过被诅咒的教区，诛灭盘踞圣坛的守墓者。</p>
+        <button id="begin">踏入诅咒之地</button>
+        <p class="hint">WASD 移动 · 鼠标瞄准/攻击 · 1 2 3 施放技能 · E 拾取</p>
+      </section>
+      <section id="death" class="modal hidden"><div class="sigil">☠</div><h1>你已陨落</h1><p>黑暗吞噬了一切，但余烬仍未熄灭。</p><button id="retry">从篝火苏醒</button></section>
+      <aside id="quest"><span>当前目标</span><strong>净化灰烬墓园</strong><p id="questText">击败墓园中的腐化生物</p></aside>
+      <div id="bossbar" class="hidden"><label>墓园守望者 · 莫德雷克</label><div><i></i></div></div>
+      <section id="hud">
+        <div class="orb hp"><b id="hpText">100</b><small>生命</small></div>
+        <div class="hero-info"><strong>流亡猎魔人</strong><span id="level">等级 1</span><div class="xp"><i id="xpFill"></i></div></div>
+        <div id="skills"></div>
+        <div class="orb mana"><b id="manaText">100</b><small>魂能</small></div>
+      </section>
+      <aside id="inventory"><header><b>行囊</b><button id="closeBag">×</button></header><div id="gear"></div><h3>战利品</h3><div id="bag"></div><p>按 <kbd>I</kbd> 开关行囊 · 点击物品装备</p></aside>
+      <div id="toast"></div><button id="bagButton">行囊 <kbd>I</kbd></button>
+      <section id="touchControls" aria-label="手机触控操作">
+        <div id="joystick"><i></i></div>
+        <div id="touchSkills">
+          <button data-skill="0" aria-label="裂魂箭">➶<small>1</small></button>
+          <button data-skill="1" aria-label="血月斩">☾<small>2</small></button>
+          <button data-skill="2" aria-label="幽冥新星">✺<small>3</small></button>
+          <button id="touchAttack" aria-label="普通攻击">⚔<small>攻击</small></button>
+          <button id="touchPickup" aria-label="拾取">◆<small>拾取</small></button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./src/game.js"></script>
+  </body>
+</html>
