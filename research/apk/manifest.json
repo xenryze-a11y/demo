@@ -1,0 +1,57 @@
+{
+  "output": "sjlm_4.0.6.apk",
+  "size": 99267482,
+  "sha256": "74ba94f17ffcc3b02761ca701ca969c7a6be47ba1773296afdab61ee8e83d04e",
+  "parts": [
+    {
+      "file": "apk.part01.bin",
+      "size": 10000000,
+      "sha256": "77823fcad6c553c66066c71348f1fba140cca0fae05bca60366531f2186da839"
+    },
+    {
+      "file": "apk.part02.bin",
+      "size": 10000000,
+      "sha256": "ae97d17f2a54adfdad74549087f39fb0a4dbbeeb4c1cc2a9df9a56675ffa8655"
+    },
+    {
+      "file": "apk.part03.bin",
+      "size": 10000000,
+      "sha256": "2c2f819532ee47995ac95ce052792cd4beaaee66013c2c2fd9876fc6cf0d0f49"
+    },
+    {
+      "file": "apk.part04.bin",
+      "size": 10000000,
+      "sha256": "d44feec1fe80e86cf9a32c1d3055fb505b32b443037efdea12d9791ef14a9d32"
+    },
+    {
+      "file": "apk.part05.bin",
+      "size": 10000000,
+      "sha256": "b2c40463c477c14a1ce9702b6a77b5faf4bd67d12eab0b7290f0a834a91cbe52"
+    },
+    {
+      "file": "apk.part06.bin",
+      "size": 10000000,
+      "sha256": "045a937176ad78c18955029edeccb91beb1cfc8103f0df1f23553aac16c79c8b"
+    },
+    {
+      "file": "apk.part07.bin",
+      "size": 10000000,
+      "sha256": "1587090244f82c836647810fa50b21406d619bd34b624a74f5651e790a308dbe"
+    },
+    {
+      "file": "apk.part08.bin",
+      "size": 10000000,
+      "sha256": "6da80b89a22bb755d6fb0d871093a6a340218f2123e98776919d95d41b59b95f"
+    },
+    {
+      "file": "apk.part09.bin",
+      "size": 10000000,
+      "sha256": "5cb61484dc287867c3a7b4943dc63d23f94ee4443046975fc040792cf6eafdf5"
+    },
+    {
+      "file": "apk.part10.bin",
+      "size": 9267482,
+      "sha256": "7b147e94a655c8ca8eb9535f7e3b08089318daa6e3ca8807724af053ee590080"
+    }
+  ]
+}
