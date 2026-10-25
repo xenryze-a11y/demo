@@ -1,11 +1,11 @@
-import { HEROES, STAGES, SPELLS, DEFAULT_FORMATION, getHero } from "./data.js?v=88b1ca87e0ed";
+import { HEROES, STAGES, SPELLS, DEFAULT_FORMATION, getHero } from "./data.js?v=81cc37657afc";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=88b1ca87e0ed";
+} from "./state.js?v=81cc37657afc";
 import {
   createBattle,
   living,
@@ -15,11 +15,11 @@ import {
   basicAction,
   spellAction,
   applyAction,
-} from "./battle.js?v=88b1ca87e0ed";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=88b1ca87e0ed";
-import { Battlefield } from "./renderer.js?v=88b1ca87e0ed";
-import { Sound } from "./audio.js?v=88b1ca87e0ed";
-import { createTraining } from "./training.js?v=88b1ca87e0ed";
+} from "./battle.js?v=81cc37657afc";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=81cc37657afc";
+import { Battlefield } from "./renderer.js?v=81cc37657afc";
+import { Sound } from "./audio.js?v=81cc37657afc";
+import { createTraining } from "./training.js?v=81cc37657afc";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -99,6 +99,8 @@ export async function mountGame(root = document) {
   }
   if (disposed) return;
   $("#game").style.setProperty("--map-image", `url("${ART.map.src}")`);
+  $("#game").style.setProperty("--native-blue", `url("${ART.buttonBlue.src}")`);
+  $("#game").style.setProperty("--native-gold", `url("${ART.buttonGold.src}")`);
   HEROES.forEach((h) => portraits.set(h.id, portrait(h.sprite)));
   closedChest = chestImage(false);
   openChest = chestImage(true);
@@ -125,6 +127,7 @@ export async function mountGame(root = document) {
       battle = mode === "battle";
     $("#formationBar").hidden = !formation;
     $("#training").hidden = !formation;
+    $("#bossChallenge").hidden = !formation;
     $("#formationCount").hidden = !formation;
     $("#combatBar").hidden = formation || mode === "loading";
     $("#currency").hidden = formation;
@@ -213,7 +216,7 @@ export async function mountGame(root = document) {
       "map",
       frame(
         "德玛西亚",
-        `<svg class="map-path" viewBox="0 0 760 365"><g fill="none" stroke="#65533e" stroke-width="5"><path d="M65 201L168 62L304 73L292 201L382 323L483 199L610 200L610 65M610 200L719 201"/></g><g fill="none" stroke="#cab78c" stroke-width="1"><path d="M65 201L168 62L304 73L292 201L382 323L483 199L610 200L610 65M610 200L719 201"/></g></svg>${points.map((p) => `<button class="map-node ${p.stage === state.stage ? "current" : ""} ${p.locked ? "locked" : ""}" style="left:${p.x}px;top:${p.y}px" ${p.done ? "data-completed" : p.stage !== undefined ? `data-stage="${p.stage}"` : ""} ${p.locked || p.stage > save.unlocked ? "disabled" : ""} aria-label="关卡 ${p.label}"><span class="badge">${mapIcon(p.locked || p.stage > save.unlocked ? "lock" : p.done ? "helmet" : "banner")}</span><span class="node-name">${p.label}</span><span class="node-stars">${p.done ? "★" : save.stars[p.stage] ? "★".repeat(Math.min(2, save.stars[p.stage])) : p.stage === state.stage ? "★★" : ""}</span></button>`).join("")}<span class="map-caption">点击关卡进入布阵　·　已通关 ${Object.values(save.stars).filter(Boolean).length} / 3</span><span class="map-caption" style="left:auto;right:30px">⚡ 35/35</span>`,
+        `<svg class="map-path" viewBox="0 0 760 365"><g fill="none" stroke="#65533e" stroke-width="5"><path d="M65 201L168 62L304 73L292 201L382 323L483 199L610 200L610 65M610 200L719 201"/></g><g fill="none" stroke="#cab78c" stroke-width="1"><path d="M65 201L168 62L304 73L292 201L382 323L483 199L610 200L610 65M610 200L719 201"/></g></svg>${points.map((p) => `<button class="map-node ${p.stage === state.stage ? "current" : ""} ${p.locked ? "locked" : ""}" style="left:${p.x}px;top:${p.y}px" ${p.done ? "data-completed" : p.stage !== undefined ? `data-stage="${p.stage}"` : ""} ${p.locked || p.stage > save.unlocked ? "disabled" : ""} aria-label="关卡 ${p.label}"><span class="badge">${mapIcon(p.locked || p.stage > save.unlocked ? "lock" : p.done ? "helmet" : "banner")}</span><span class="node-name">${p.label}</span><span class="node-stars">${p.done ? "★" : save.stars[p.stage] ? "★".repeat(Math.min(2, save.stars[p.stage])) : p.stage === state.stage ? "★★" : ""}</span></button>`).join("")}<span class="map-caption">点击关卡进入布阵　·　已通关 ${[0, 1, 2].filter((id) => save.stars[id]).length} / 3</span><span class="map-caption" style="left:auto;right:30px">⚡ 35/35</span>`,
         "map-window",
       ),
     );
@@ -476,6 +479,21 @@ export async function mountGame(root = document) {
     play: (kind) => sound.play(kind),
   });
   $("#training").onclick = () => training.open();
+  $("#bossChallenge").onclick = () => {
+    showModal(
+      "boss",
+      frame(
+        "狼王降临",
+        `<div class="boss-intro"><img src="${ART.bossHead.src}" alt="狂暴狼王"><div><h2>狂暴狼王 · Lv.10</h2><p>每逢第三回合发动「裂空横扫」，攻击全队。</p><p>生命 6800　·　胜利金币 +150　·　经验卡 +1</p><small>建议携带治疗英雄，提前保留能量应对横扫。</small></div></div><div class="window-footer"><button class="ornate blue" data-close>稍后挑战</button><button class="ornate gold" id="enterBoss">前往布阵</button></div>`,
+        "boss-window",
+      ),
+    );
+    $("#enterBoss").onclick = () => {
+      changeStage(3);
+      closeModal();
+      toast("狼王遗迹：调整阵容后开始战斗");
+    };
+  };
   $("#back").onclick = showMap;
   $("#heroes").onclick = showHeroes;
   $("#arrange").onclick = showArrange;
@@ -749,7 +767,7 @@ export async function mountGame(root = document) {
       save.trainingCards = Math.min(9999, save.trainingCards + 1);
       save.gold += result.gold;
       save.xp += result.xp;
-      save.unlocked = Math.min(2, Math.max(save.unlocked, state.stage + 1));
+      if (!s.boss) save.unlocked = Math.min(2, Math.max(save.unlocked, state.stage + 1));
       save.stars[state.stage] = Math.max(
         save.stars[state.stage] || 0,
         result.stars,
@@ -770,7 +788,7 @@ export async function mountGame(root = document) {
       up = levelFor(save.xp) > r.oldLevel;
     showModal(
       "result",
-      `<section class="result-screen ${r.victory ? "" : "result-defeat"}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "经验卡 +1 已入库 · 请选择一个宝箱"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.choice === i ? openChest : closedChest}" alt="${r.choice === i ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
+      `<section class="result-screen ${r.victory ? "" : "result-defeat"}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "经验卡 +1 已入库 · 请选择一个宝箱"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.choice === i ? openChest : closedChest}" alt="${r.choice === i ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage === 3 ? "返回布阵" : state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
     );
     if (r.victory) {
       root
@@ -785,7 +803,7 @@ export async function mountGame(root = document) {
           showMap();
         };
         $("#nextStage").onclick = () => {
-          const next = Math.min(2, state.stage + 1);
+          const next = state.stage === 3 ? 0 : Math.min(2, state.stage + 1);
           closeModal();
           returnFormation();
           changeStage(next);

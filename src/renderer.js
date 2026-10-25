@@ -1,5 +1,5 @@
-import { ART, drawSprite } from "./art.js?v=88b1ca87e0ed";
-import { HEROES, ENEMIES, STAGES, getHero } from "./data.js?v=88b1ca87e0ed";
+import { ART, drawSprite } from "./art.js?v=81cc37657afc";
+import { HEROES, ENEMIES, STAGES, getHero } from "./data.js?v=81cc37657afc";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
@@ -18,6 +18,7 @@ const heights = {
   healer: 128,
   wolf: 77,
   sentinel: 163,
+  boss: 195,
 };
 function arrow(c, x, y, color, enemy = false, selected = false) {
   c.save();
@@ -113,7 +114,13 @@ export class Battlefield {
   render(state, now) {
     const c = this.ctx;
     c.clearRect(0, 0, W, H);
-    c.drawImage(ART.background, 0, 0, W, H);
+    c.drawImage(
+      state.stage === 3 ? ART.bossBackground : ART.background,
+      0,
+      0,
+      W,
+      H,
+    );
     this.hits = [];
     const prep = state.mode === "formation";
     const units = prep
@@ -202,9 +209,6 @@ export class Battlefield {
       c.save();
       if (dead) {
         c.globalAlpha = 0.25;
-        c.translate(x, y);
-        c.rotate(u.side === "enemy" ? -0.9 : 0.9);
-        c.translate(-x, -y);
       }
       c.fillStyle = "#251b1544";
       c.beginPath();
@@ -217,12 +221,28 @@ export class Battlefield {
         c.ellipse(x, y, 35, 8, 0, 0, 7);
         c.stroke();
       }
-      const flip =
-        (u.sprite === 5 && u.side === "enemy") ||
-        u.sprite === 6 ||
-        u.sprite === 7
-          ? false
-          : false;
+      const flip = u.side === "enemy";
+      const acting = anim?.action.actor === u.id;
+      const struck =
+        anim?.action.targets.some((hit) => hit.id === u.id && !hit.heal) &&
+        p > 0.5 &&
+        p < 0.8;
+      const motion = dead
+        ? "dead"
+        : acting
+          ? ["attack", "bolt"].includes(anim.action.kind)
+            ? "attack"
+            : "skill1"
+          : struck
+            ? "hurt"
+            : "stand";
+      const motionTime = acting
+        ? anim.elapsed / 1000
+        : dead
+          ? 2
+          : struck
+            ? (p - 0.5) * 0.4
+            : now / 1000 + u.slot * 0.17;
       drawSprite(
         c,
         u.sprite,
@@ -230,6 +250,10 @@ export class Battlefield {
         y + (dead ? 9 : Math.sin(now * 0.003 + u.slot) * 1),
         height,
         flip,
+        1,
+        motion,
+        motionTime,
+        !dead && !acting && !struck,
       );
       c.restore();
       if (!prep && !dead) {
@@ -279,6 +303,29 @@ export class Battlefield {
         h: height,
         w: u.kind === "wolf" ? 95 : 86,
       });
+    }
+    if (state.stage === 3) {
+      const boss = units.find((unit) => unit.kind === "boss");
+      if (boss) {
+        const ratio = Math.max(0, boss.hp / boss.maxHp);
+        c.fillStyle = "#15151de6";
+        c.fillRect(580, 77, 385, 38);
+        c.strokeStyle = "#b79a5a";
+        c.strokeRect(580, 77, 385, 38);
+        c.fillStyle = "#501121";
+        c.fillRect(588, 98, 369, 10);
+        c.fillStyle = "#cf263a";
+        c.fillRect(588, 98, 369 * ratio, 10);
+        this.text("BOSS  狂暴狼王", 590, 92, "#ffdf8d", 15, "left");
+        this.text(
+          `${Math.ceil(boss.hp)} / ${boss.maxHp}`,
+          951,
+          92,
+          "#fff",
+          12,
+          "right",
+        );
+      }
     }
     if (anim) this.effect(anim.action, p, state.battle, now);
     this.floats = this.floats.filter((f) => now - f.start < 1250);
@@ -351,6 +398,22 @@ export class Battlefield {
         c.beginPath();
         c.arc(x, y, 6, 0, 7);
         c.fill();
+        c.restore();
+      }
+      if (action.kind === "bossSlam" && p > 0.25) {
+        c.save();
+        c.globalCompositeOperation = "lighter";
+        c.globalAlpha = Math.sin(p * Math.PI);
+        c.strokeStyle = "#67ccff";
+        c.shadowColor = "#b4ecff";
+        c.shadowBlur = 20;
+        c.lineWidth = 6;
+        for (let i = 0; i < 3; i++) {
+          c.beginPath();
+          c.moveTo(to.x - 50 + i * 20, to.y - 160);
+          c.lineTo(to.x + 35 + i * 20, to.y - 10);
+          c.stroke();
+        }
         c.restore();
       }
       if (action.kind === "comet" && p > 0.23) {

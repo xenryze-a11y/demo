@@ -1,5 +1,5 @@
-import { DEFAULT_FORMATION, HEROES, MAX_PARTY } from "./data.js?v=88b1ca87e0ed";
-import { normalizeHeroProgress } from "./progression.js?v=88b1ca87e0ed";
+import { DEFAULT_FORMATION, HEROES, MAX_PARTY } from "./data.js?v=81cc37657afc";
+import { normalizeHeroProgress } from "./progression.js?v=81cc37657afc";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,
@@ -46,7 +46,7 @@ export function normalizeSave(raw) {
     });
     if (!used.size) clean.formation = [...DEFAULT_FORMATION];
   }
-  for (let i = 0; i < 3; i++)
+  for (let i = 0; i < 4; i++)
     clean.stars[i] = Math.max(
       0,
       Math.min(3, Math.floor(Number(raw.stars?.[i]) || 0)),

@@ -2215,3 +2215,69 @@ button:active:not(:disabled) {
     animation: none;
   }
 }
+.boss-entry {
+  position: absolute;
+  left: 78px;
+  top: 70px;
+  min-width: 116px !important;
+  height: 35px !important;
+  font-size: 15px !important;
+}
+.boss-intro {
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  padding: 30px 15px;
+}
+.boss-intro img {
+  width: 130px;
+  height: 130px;
+  border: 4px ridge #b79a5a;
+  border-radius: 12px;
+}
+.boss-intro h2 {
+  color: #ffda6a;
+  margin: 0 0 14px;
+}
+.boss-intro p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.boss-intro small {
+  color: #aab9c5;
+}
+.boss-window .window-footer {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+.training-art {
+  height: 249px !important;
+  object-fit: cover !important;
+  bottom: auto !important;
+}
+.ornate.blue {
+  background-image: var(--native-blue);
+  background-size: 100% 100%;
+  border: 0;
+  box-shadow: none;
+}
+.ornate.gold {
+  background-image: var(--native-gold);
+  background-size: 100% 100%;
+  border: 0;
+  box-shadow: none;
+}
+.ornate:before,
+.ornate:after {
+  display: none;
+}
+.skill > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.skill:disabled > img {
+  filter: brightness(0.38) grayscale(0.65);
+}

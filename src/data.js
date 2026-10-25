@@ -91,6 +91,18 @@ export const HEROES = [
   },
 ];
 export const ENEMIES = {
+  wolfking: {
+    name: "狂暴狼王",
+    kind: "boss",
+    sprite: 7,
+    color: "#f2c65c",
+    hp: 6800,
+    attack: 290,
+    defense: 46,
+    speed: 62,
+    level: 10,
+    skill: "裂空爪击",
+  },
   wolf: {
     name: "暗影狼",
     kind: "wolf",
@@ -167,6 +179,20 @@ export const STAGES = [
     xp: 55,
   },
 ];
+STAGES.push({
+  id: 3,
+  name: "狼王遗迹",
+  subtitle: "狂暴狼王",
+  chapter: "BOSS",
+  enemies: [
+    ["wolf", 0],
+    ["wolfking", 4],
+    ["wolf", 6],
+  ],
+  gold: 150,
+  xp: 62,
+  boss: true,
+});
 export const SPELLS = [
   {
     id: "comet",

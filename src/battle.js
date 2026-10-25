@@ -1,5 +1,5 @@
-import { getHero, ENEMIES, SPELLS, STAGES } from "./data.js?v=88b1ca87e0ed";
-import { heroStats } from "./progression.js?v=88b1ca87e0ed";
+import { getHero, ENEMIES, SPELLS, STAGES } from "./data.js?v=81cc37657afc";
+import { heroStats } from "./progression.js?v=81cc37657afc";
 export function createBattle(
   formation,
   stageId = 0,
@@ -101,6 +101,22 @@ export function chooseTarget(b, actor) {
   })[0];
 }
 export function basicAction(b, actor, random = Math.random) {
+  if (actor.kind === "boss" && b.round % 3 === 0) {
+    return {
+      kind: "bossSlam",
+      actor: actor.id,
+      name: "裂空横扫",
+      targets: living(b, "ally").map((unit) => ({
+        id: unit.id,
+        amount: Math.max(
+          12,
+          Math.round(actor.attack * 0.85 - unit.defense * 0.4),
+        ),
+        heal: false,
+        critical: false,
+      })),
+    };
+  }
   const target = chooseTarget(b, actor);
   if (!target) return null;
   const heal = target.side === actor.side,

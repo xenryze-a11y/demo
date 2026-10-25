@@ -1,9 +1,42 @@
+import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=81cc37657afc";
 const urls = {
   map: new URL("../assets/map.png", import.meta.url).href,
   background: new URL("../assets/battlefield.png", import.meta.url).href,
   sprites: new URL("../assets/heroes.png", import.meta.url).href,
   victory: new URL("../assets/victory.png", import.meta.url).href,
   chests: new URL("../assets/chests.png", import.meta.url).href,
+  rig0_0: new URL("../assets/native/rig0_0.png", import.meta.url).href,
+  card0: new URL("../assets/native/card0.jpg", import.meta.url).href,
+  head0: new URL("../assets/native/head0.jpg", import.meta.url).href,
+  rig1_0: new URL("../assets/native/rig1_0.png", import.meta.url).href,
+  rig1_1: new URL("../assets/native/rig1_1.png", import.meta.url).href,
+  card1: new URL("../assets/native/card1.jpg", import.meta.url).href,
+  head1: new URL("../assets/native/head1.jpg", import.meta.url).href,
+  rig2_0: new URL("../assets/native/rig2_0.png", import.meta.url).href,
+  card2: new URL("../assets/native/card2.jpg", import.meta.url).href,
+  head2: new URL("../assets/native/head2.jpg", import.meta.url).href,
+  rig3_0: new URL("../assets/native/rig3_0.png", import.meta.url).href,
+  card3: new URL("../assets/native/card3.jpg", import.meta.url).href,
+  head3: new URL("../assets/native/head3.jpg", import.meta.url).href,
+  rig4_0: new URL("../assets/native/rig4_0.png", import.meta.url).href,
+  card4: new URL("../assets/native/card4.jpg", import.meta.url).href,
+  head4: new URL("../assets/native/head4.jpg", import.meta.url).href,
+  rig5_0: new URL("../assets/native/rig5_0.png", import.meta.url).href,
+  card5: new URL("../assets/native/card5.jpg", import.meta.url).href,
+  head5: new URL("../assets/native/head5.jpg", import.meta.url).href,
+  rig6_0: new URL("../assets/native/rig6_0.png", import.meta.url).href,
+  rig7_0: new URL("../assets/native/rig7_0.png", import.meta.url).href,
+  background: new URL("../assets/native/background.jpg", import.meta.url).href,
+  bossBackground: new URL(
+    "../assets/native/bossBackground.jpg",
+    import.meta.url,
+  ).href,
+  bossHead: new URL("../assets/native/bossHead.jpg", import.meta.url).href,
+  skillSword: new URL("../assets/native/skillSword.jpg", import.meta.url).href,
+  skillFire: new URL("../assets/native/skillFire.jpg", import.meta.url).href,
+  skillSun: new URL("../assets/native/skillSun.jpg", import.meta.url).href,
+  buttonBlue: new URL("../assets/native/buttonBlue.png", import.meta.url).href,
+  buttonGold: new URL("../assets/native/buttonGold.png", import.meta.url).href,
 };
 export const ART = {};
 function load(url) {
@@ -14,8 +47,14 @@ function load(url) {
       image.src = "";
       reject(new Error("美术资源加载超时"));
     }, 60000);
-    image.onload = () => { clearTimeout(timer); resolve(image); };
-    image.onerror = () => { clearTimeout(timer); reject(new Error("无法加载美术资源")); };
+    image.onload = () => {
+      clearTimeout(timer);
+      resolve(image);
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("无法加载美术资源"));
+    };
     image.src = url;
   });
 }
@@ -24,13 +63,12 @@ export async function loadArt(onProgress = () => {}) {
   const total = Object.keys(urls).length;
   onProgress(completed, total);
   await Promise.all(
-    Object.entries(urls).map(
-      async ([name, url]) => {
-        ART[name] = await load(url);
-        onProgress(++completed, total);
-      },
-    ),
+    Object.entries(urls).map(async ([name, url]) => {
+      ART[name] = await load(url);
+      onProgress(++completed, total);
+    }),
   );
+  initNativeRigs(ART);
   ART.bounds = cellBounds(ART.sprites, 4, 2);
   ART.chestBounds = cellBounds(ART.chests, 2, 1);
   return ART;
@@ -64,7 +102,22 @@ function cellBounds(image, cols, rows) {
   }
   return out;
 }
-export function drawSprite(c, index, x, y, height, flip = false, alpha = 1) {
+export function drawSprite(
+  c,
+  index,
+  x,
+  y,
+  height,
+  flip = false,
+  alpha = 1,
+  animation = "stand",
+  seconds = 0,
+  loop = true,
+) {
+  if (
+    drawNativeRig(c, index, x, y, height, flip, alpha, animation, seconds, loop)
+  )
+    return;
   const b = ART.bounds[index];
   if (!b) return;
   const w = (height * b.w) / b.h;
@@ -76,6 +129,7 @@ export function drawSprite(c, index, x, y, height, flip = false, alpha = 1) {
   c.restore();
 }
 export function portrait(index) {
+  if (ART["head" + index]) return ART["head" + index].src;
   const cv = document.createElement("canvas");
   cv.width = 160;
   cv.height = 160;
@@ -104,6 +158,10 @@ export function chestImage(open) {
   return cv.toDataURL("image/png");
 }
 export function iconSvg(kind) {
+  const nativeIcon =
+    ART[{ sword: "skillSword", fire: "skillFire", sun: "skillSun" }[kind]];
+  if (nativeIcon)
+    return `<img src="${nativeIcon.src}" alt="" aria-hidden="true">`;
   const common =
     '<defs><radialGradient id="fire"><stop stop-color="#fff7af"/><stop offset=".32" stop-color="#ffb71b"/><stop offset="1" stop-color="#b9000f"/></radialGradient><linearGradient id="steel" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".5" stop-color="#e1e7e4"/><stop offset="1" stop-color="#487082"/></linearGradient></defs>';
   const rays = Array.from({ length: 12 }, (_, i) => {
