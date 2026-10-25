@@ -1,5 +1,6 @@
-import { ART, drawSprite } from "./art.js?v=4f68d6b04255";
-import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=4f68d6b04255";
+import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=e7b6ee51ab02";
+import { ART, drawSprite } from "./art.js?v=e7b6ee51ab02";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=e7b6ee51ab02";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
@@ -20,38 +21,58 @@ const heights = {
   sentinel: 163,
   boss: 195,
 };
+// Measured separately in the 8.5 s formation and 18 s combat reference frames.
+export function battlePosition(side, slot) {
+  const row = Math.floor(slot / 3),
+    col = slot % 3;
+  return side === "ally"
+    ? { x: 160 + col * 140 - row * 50, y: 230 + row * 100 }
+    : { x: 640 + col * 130 + row * 50, y: 230 + row * 100 };
+}
+export function actionPosition(battle, action, progress) {
+  const actor = battle.units.find((u) => u.id === action.actor);
+  if (!actor) return { x: 0, y: 0 };
+  const origin = battlePosition(actor.side, actor.slot);
+  if (action.movement !== "advance-spin") return origin;
+  const targets = action.targets
+    .map((h) => battle.units.find((u) => u.id === h.id))
+    .filter(Boolean);
+  const direction = actor.side === "ally" ? 1 : -1;
+  const nearest = targets.length
+    ? Math.min(
+        ...targets.map((u) =>
+          Math.abs(battlePosition(u.side, u.slot).x - origin.x),
+        ),
+      )
+    : 250;
+  const distance = Math.max(0, Math.min(180, nearest - 70));
+  const phase =
+    progress < 0.18
+      ? progress / 0.18
+      : progress > 0.82
+        ? (1 - progress) / 0.18
+        : 1;
+  const t = Math.max(0, Math.min(1, phase));
+  const eased = t * t * (3 - 2 * t);
+  return { x: origin.x + direction * distance * eased, y: origin.y };
+}
 function arrow(c, x, y, color, enemy = false, selected = false) {
+  const key = ["#f5f4e8", "#f0c769", "#c7d9ff"].includes(color)
+    ? "arrowWhite"
+    : /f[026]6|f268/.test(color)
+      ? "arrowPurple"
+      : /7af|7ef/.test(color)
+        ? "arrowGreen"
+        : "arrowBlue";
+  const image = ART[key];
   c.save();
   c.translate(x, y);
   if (enemy) c.scale(-0.68, 0.68);
-  c.shadowColor = color;
-  c.shadowBlur = selected ? 12 : 4;
-  c.lineWidth = 2.4;
-  c.strokeStyle = color;
-  c.fillStyle = color + "25";
-  const shape = (s) => {
-    c.beginPath();
-    c.moveTo(-57 * s, 16 * s);
-    c.lineTo(9 * s, 16 * s);
-    c.lineTo(4 * s, 24 * s);
-    c.lineTo(67 * s, 0);
-    c.lineTo(34 * s, -24 * s);
-    c.lineTo(30 * s, -16 * s);
-    c.lineTo(-35 * s, -16 * s);
-    c.closePath();
-    c.fill();
-    c.stroke();
-  };
-  shape(1);
-  c.shadowBlur = 0;
-  shape(0.79);
-  for (let i = 0; i < 3; i++) {
-    c.beginPath();
-    c.moveTo(-32 + i * 10, -9);
-    c.lineTo(-27 + i * 10, 0);
-    c.lineTo(-39 + i * 10, 9);
-    c.stroke();
+  if (selected) {
+    c.shadowColor = "#ffed80";
+    c.shadowBlur = 12;
   }
+  c.drawImage(image, -67, -25, 134, 50);
   c.restore();
 }
 export class Battlefield {
@@ -123,6 +144,7 @@ export class Battlefield {
     );
     this.hits = [];
     const prep = state.mode === "formation";
+    const locate = prep ? position : battlePosition;
     const units = prep
       ? [
           ...state.formation.flatMap((id, slot) =>
@@ -180,18 +202,32 @@ export class Battlefield {
       c.fillRect(0, 0, W, H);
     }
     for (const u of [...units].sort(
-      (a, b) => position(a.side, a.slot).y - position(b.side, b.slot).y,
+      (a, b) =>
+        locate(a.side, a.slot).y - locate(b.side, b.slot).y ||
+        Number(a.id === anim?.action.actor) -
+          Number(b.id === anim?.action.actor),
     )) {
-      const origin = position(u.side, u.slot),
-        height = heights[u.kind] || 125;
+      const origin = locate(u.side, u.slot),
+        height =
+          (heights[u.kind] || 125) *
+          (prep
+            ? u.side === "enemy"
+              ? 0.65
+              : u.kind === "rogue"
+                ? 0.78
+                : 0.84
+            : 1);
       let { x, y } = origin,
         dead = u.hp <= 0;
       if (state.drag?.active && state.drag.id === u.id) continue;
+      const spinning =
+        anim?.action.actor === u.id && anim.action.movement === "advance-spin";
+      if (spinning) ({ x, y } = actionPosition(state.battle, anim.action, p));
       if (anim && anim.action.actor === u.id && anim.action.kind === "attack") {
         const target = state.battle.units.find(
             (t) => t.id === anim.action.targets[0].id,
           ),
-          to = position(target.side, target.slot);
+          to = locate(target.side, target.slot);
         const dash = p < 0.27 ? p / 0.27 : p > 0.7 ? (1 - p) / 0.3 : 1;
         x +=
           (to.x - origin.x + (u.side === "ally" ? -60 : 60)) *
@@ -210,10 +246,7 @@ export class Battlefield {
       if (dead) {
         c.globalAlpha = 0.25;
       }
-      c.fillStyle = "#251b1544";
-      c.beginPath();
-      c.ellipse(x, y - 1, 32, 8, 0, 0, 7);
-      c.fill();
+      c.drawImage(ART.shadow, x - 33, y - 11, 66, 24);
       if (prep && state.selected === u.id) {
         c.strokeStyle = "#fff3b7aa";
         c.lineWidth = 1.5;
@@ -221,29 +254,39 @@ export class Battlefield {
         c.ellipse(x, y, 35, 8, 0, 0, 7);
         c.stroke();
       }
-      const flip = u.side === "enemy";
+      const flip = (u.side === "enemy") !== (spinning && p > 0.82);
       const acting = anim?.action.actor === u.id;
       const struck =
         anim?.action.targets.some((hit) => hit.id === u.id && !hit.heal) &&
         p > 0.5 &&
         p < 0.8;
-      const motion = dead
-        ? "dead"
-        : acting
-          ? anim.action.animation ||
-            (["attack", "bolt"].includes(anim.action.kind)
-              ? "attack"
-              : "skill1")
-          : struck
-            ? "hurt"
-            : "stand";
-      const motionTime = acting
-        ? anim.elapsed / 1000
+      const motion = spinning
+        ? p < 0.18 || p > 0.82
+          ? "run"
+          : "skill1_loop"
         : dead
-          ? 2
-          : struck
-            ? (p - 0.5) * 0.4
-            : now / 1000 + u.slot * 0.17;
+          ? "dead"
+          : acting
+            ? anim.action.animation ||
+              (["attack", "bolt"].includes(anim.action.kind)
+                ? "attack"
+                : "skill1")
+            : struck
+              ? "hurt"
+              : "stand";
+      const motionTime = spinning
+        ? p < 0.18
+          ? anim.elapsed / 1000
+          : (anim.elapsed - anim.duration * 0.18) / 1000
+        : acting
+          ? (Math.max(0, p - (anim.action.kind === "attack" ? 0.23 : 0)) /
+              (anim.action.kind === "attack" ? 0.5 : 0.92)) *
+            nativeDuration(u.sprite, motion)
+          : dead
+            ? 2
+            : struck
+              ? (p - 0.5) * 0.4
+              : now / 1000 + u.slot * 0.17;
       drawSprite(
         c,
         u.sprite,
@@ -254,45 +297,27 @@ export class Battlefield {
         1,
         motion,
         motionTime,
-        !dead && !acting && !struck,
+        spinning || (!dead && !acting && !struck),
       );
       c.restore();
       if (!prep && !dead) {
-        const barY = y + 10;
-        this.text(
-          (u.category === "protagonist" ? "★ " : "") + u.name,
-          x,
-          barY - 1,
-          u.color,
-          15,
-        );
-        c.fillStyle = "#222522";
-        c.fillRect(x - 39, barY + 5, 78, 10);
-        c.strokeStyle = "#c8bdaa";
-        c.lineWidth = 1;
-        c.strokeRect(x - 39, barY + 5, 78, 10);
-        const g = c.createLinearGradient(0, barY + 5, 0, barY + 15);
-        g.addColorStop(0, u.side === "ally" ? "#f35663" : "#ec7173");
-        g.addColorStop(0.5, "#b80012");
-        g.addColorStop(1, "#690d16");
-        c.fillStyle = g;
-        c.fillRect(x - 37, barY + 7, 74 * Math.max(0, u.hp / u.maxHp), 6);
-        c.fillStyle = "#222";
-        c.strokeStyle = "#bdb3a1";
-        c.beginPath();
-        c.ellipse(x - 44, barY + 9, 12, 14, 0, 0, 7);
-        c.fill();
-        c.stroke();
-        this.text(
-          String(
-            u.level ||
-              (u.side === "ally" ? state.heroProgress[u.id]?.level || 6 : 2),
-          ),
-          x - 44,
-          barY + 14,
-          "#fff",
-          12,
-        );
+        const barY = y + 5,
+          ratio = Math.max(0, u.hp / u.maxHp);
+        this.text(u.name, x, barY - 1, u.color, 16);
+        c.drawImage(ART.hpFrame, x - 56, barY, 95, 31);
+        if (ratio > 0)
+          c.drawImage(
+            ART.hpFill,
+            0,
+            0,
+            ART.hpFill.width * ratio,
+            ART.hpFill.height,
+            x - 25,
+            barY + 11,
+            61 * ratio,
+            9,
+          );
+        this.text(String(u.level || 2), x - 41, barY + 23, "#fff", 14);
       }
       if (state.targeting && u.side === "enemy" && !dead) {
         c.strokeStyle = "#ffde5f";
@@ -302,8 +327,16 @@ export class Battlefield {
         c.stroke();
         this.text("▼", x, y - height - 8, "#fff18e", 20);
       }
-      if (u.category === "protagonist" && prep)
-        this.text("主角 · " + u.name, x, y + 18, "#ffdf68", 15);
+      if (!prep && !dead && (u.shield || u.reflect))
+        drawNativeEffect(
+          c,
+          u.shield ? "skill20101_add" : "skill20301_add",
+          x,
+          y,
+          125,
+          now / 1000,
+          true,
+        );
       const status = [
         u.shield > 0 ? "护盾" : "",
         u.reflect ? "反伤" : "",
@@ -351,7 +384,7 @@ export class Battlefield {
     for (const f of this.floats) {
       const u = units.find((u) => u.id === f.id);
       if (!u) continue;
-      const pos = position(u.side, u.slot),
+      const pos = locate(u.side, u.slot),
         t = (now - f.start) / 1250;
       c.globalAlpha = 1 - Math.max(0, (t - 0.65) / 0.35);
       this.text(f.text, pos.x, pos.y - 75 - t * 48, f.color, 27);
@@ -370,11 +403,7 @@ export class Battlefield {
       );
     }
     if (state.mode === "loading") {
-      c.fillStyle = "#10151ad9";
-      c.fillRect(0, 0, W, H);
-      drawSprite(c, 1, 410, 430, 300);
-      drawSprite(c, 4, 665, 430, 300);
-      this.text("战 斗 准 备", 512, 140, "#fbd97f", 35);
+      c.drawImage(ART.loadingScene, 0, 0, W, H);
       c.fillStyle = "#1d2630";
       c.fillRect(240, 490, 544, 12);
       c.fillStyle = "#c69e44";
@@ -384,195 +413,120 @@ export class Battlefield {
   }
   effect(action, p, b, now) {
     const c = this.ctx,
-      actor = b.units.find((u) => u.id === action.actor),
-      from = position(actor.side, actor.slot);
-    if (p < 0.12 || p > 0.95) return;
-    if (["snipe","divineRush","inferno"].includes(action.kind) && p < 0.4) {
-      c.save();
-      c.globalAlpha = Math.sin((p / 0.4) * Math.PI) * 0.93;
-      c.fillStyle = "#050b16aa";
-      c.fillRect(0, 120, W, 270);
-      c.drawImage(ART["card"+actor.sprite], 80, 123, 178, 265);
-      this.text(action.name, 540, 250, "#ffdf60", 40);
-      c.restore();
+      actor = b.units.find((u) => u.id === action.actor);
+    if (!actor) return;
+    const from = actionPosition(b, action, p),
+      spell = SPELLS.find((s) => s.id === action.kind);
+    if (p < 0.12 || p > 0.97) return;
+    if (!["attack", "bolt", "heal"].includes(action.kind) && p < 0.52) {
+      const title = spell && ART["skillTitle" + spell.nativeId];
+      if (title) c.drawImage(title, from.x - 90, from.y - 175, 180, 45);
+      else this.text(action.name, from.x, from.y - 150, "#ffe38d", 20);
     }
-    if (!["attack", "bolt", "heal"].includes(action.kind))
-      this.text(action.name, 512, 146, "#ffe38d", 25);
-    for (const hit of action.targets) {
-      const u = b.units.find((u) => u.id === hit.id),
-        to = position(u.side, u.slot);
-      const t = Math.max(0, Math.min(1, (p - 0.18) / 0.42));
-      const spell = SPELLS.find((s) => s.id === action.kind);
-      if (spell && !hit.heal && !hit.shield) {
+    if (action.kind === "lotus" && p >= 0.18 && p <= 0.82)
+      drawNativeEffect(
+        c,
+        "skill22901_self",
+        from.x,
+        from.y + 10,
+        150,
+        p * 1.35,
+        true,
+      );
+    const hitsPerTarget = action.multi
+      ? Math.max(
+          1,
+          ...action.targets.map(
+            (h) => action.targets.filter((t) => t.id === h.id).length,
+          ),
+        )
+      : 1;
+    for (const hit of [
+      ...new Map(action.targets.map((h) => [h.id, h])).values(),
+    ]) {
+      const unit = b.units.find((u) => u.id === hit.id);
+      if (!unit) continue;
+      const to = battlePosition(unit.side, unit.slot);
+      const phase = action.multi
+        ? (((p - 0.28) / 0.55) * hitsPerTarget) % 1
+        : (p - 0.22) / 0.3;
+      if (
+        (action.kind === "bolt" || (spell && actor.kind !== "knight")) &&
+        !hit.heal &&
+        !hit.shield &&
+        phase >= 0 &&
+        phase < 1
+      ) {
+        const xx = from.x + (to.x - from.x) * phase,
+          yy = from.y - 65 + (to.y - from.y) * phase;
         c.save();
-        c.globalCompositeOperation = "lighter";
-        const pulse = action.multi ? (p * 3) % 1 : t;
-        const xx = from.x + (to.x - from.x) * pulse,
-          yy = from.y - 65 + (to.y - from.y) * pulse;
-        c.strokeStyle =
-          spell.id === "frostShot"
-            ? "#9fefff"
-            : spell.id === "toxicShot"
-              ? "#aaff62"
-              : spell.color;
-        c.shadowColor = c.strokeStyle;
-        c.shadowBlur = 15;
-        c.lineWidth = 5;
+        c.translate(xx, yy);
+        c.rotate(Math.atan2(to.y - from.y, to.x - from.x));
+        c.shadowColor = actor.kind === "ranger" ? "#ffdf4a" : "#ff8338";
+        c.shadowBlur = 9;
+        c.strokeStyle = "#fff7b7";
+        c.lineWidth = 3;
         c.beginPath();
-        c.moveTo(xx - 35, yy + 8);
-        c.lineTo(xx, yy);
+        c.moveTo(-38, 0);
+        c.lineTo(9, 0);
         c.stroke();
-        c.fillStyle = "#fffbd1";
+        c.fillStyle = "#ffde5b";
         c.beginPath();
-        c.arc(xx, yy, 6, 0, Math.PI * 2);
+        c.moveTo(13, 0);
+        c.lineTo(2, -5);
+        c.lineTo(2, 5);
         c.fill();
         c.restore();
       }
-      if (hit.shield || hit.reflect || hit.heal) {
-        c.save();
-        c.strokeStyle = hit.shield ? "#ffe38d" : "#8de6ff";
-        c.lineWidth = 4;
-        c.globalAlpha = Math.sin(p * Math.PI);
-        c.beginPath();
-        c.ellipse(to.x, to.y - 65, 48, 78, 0, 0, Math.PI * 2);
-        c.stroke();
-        c.restore();
+      if (hit.shield || hit.reflect) {
+        drawNativeEffect(
+          c,
+          hit.shield ? "skill20101_add" : "skill20301_add",
+          to.x,
+          to.y,
+          135,
+          p * 1.2,
+          false,
+        );
+        continue;
       }
-      if (action.kind === "bolt") {
-        const x = from.x + (to.x - from.x) * t,
-          y = from.y - 55 + (to.y - from.y) * t;
+      if (action.kind === "lotus" && p >= 0.28 && p <= 0.82)
+        drawNativeEffect(
+          c,
+          "skill22901_front_loop",
+          to.x,
+          to.y,
+          160,
+          p * 1.35,
+          true,
+        );
+      if (hit.heal) {
         c.save();
-        c.globalCompositeOperation = "lighter";
-        c.shadowColor = "#ffae2c";
-        c.shadowBlur = 16;
-        c.strokeStyle = actor.kind === "ranger" ? "#c3ff82" : "#ffc860";
+        c.globalAlpha = Math.sin(p * Math.PI);
+        this.text("+", to.x, to.y - 65, "#b2ff56", 34);
+        c.restore();
+        continue;
+      }
+      const impact = action.multi ? phase : (p - 0.48) * 2.3;
+      if (impact >= 0 && impact < 0.8)
+        drawNativeEffect(
+          c,
+          "zhandou_shouji",
+          to.x,
+          to.y + 5,
+          150,
+          impact,
+          false,
+        );
+      if (action.kind === "bossSlam" && p > 0.3) {
+        c.save();
+        c.globalAlpha = Math.sin(p * Math.PI);
+        c.strokeStyle = "#c9f5ff";
         c.lineWidth = 5;
-        c.beginPath();
-        c.moveTo(x - 26, y + 3);
-        c.lineTo(x, y);
-        c.stroke();
-        c.fillStyle = "#fff3c1";
-        c.beginPath();
-        c.arc(x, y, 6, 0, 7);
-        c.fill();
-        c.restore();
-      }
-      if (action.kind === "bossSlam" && p > 0.25) {
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        c.globalAlpha = Math.sin(p * Math.PI);
-        c.strokeStyle = "#67ccff";
-        c.shadowColor = "#b4ecff";
-        c.shadowBlur = 20;
-        c.lineWidth = 6;
         for (let i = 0; i < 3; i++) {
           c.beginPath();
-          c.moveTo(to.x - 50 + i * 20, to.y - 160);
-          c.lineTo(to.x + 35 + i * 20, to.y - 10);
-          c.stroke();
-        }
-        c.restore();
-      }
-      if (action.kind === "comet" && p > 0.23) {
-        c.save();
-        c.translate(to.x, to.y - 45);
-        c.rotate(-0.6);
-        c.globalCompositeOperation = "lighter";
-        c.globalAlpha = Math.sin(p * Math.PI);
-        c.shadowColor = "#fc451d";
-        c.shadowBlur = 25;
-        c.fillStyle = "#ffe3a3";
-        c.beginPath();
-        c.moveTo(-13, -125);
-        c.lineTo(14, -125);
-        c.lineTo(8, 45);
-        c.lineTo(0, 75);
-        c.lineTo(-9, 45);
-        c.closePath();
-        c.fill();
-        c.strokeStyle = "#ff5837";
-        c.lineWidth = 12;
-        c.beginPath();
-        c.arc(0, 0, 70, -2, 1.7);
-        c.stroke();
-        c.restore();
-      }
-      if (action.kind === "nova" && p > 0.3) {
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        c.strokeStyle = "#ff4e22";
-        c.shadowColor = "#ff4a1d";
-        c.shadowBlur = 18;
-        c.lineWidth = 5;
-        for (let i = 0; i < 5; i++) {
-          const slide = (p * 3 + i * 0.21) % 1;
-          c.beginPath();
-          c.moveTo(
-            to.x - 170 * (1 - slide),
-            to.y - 170 * (1 - slide) - 30 + i * 5,
-          );
-          c.lineTo(
-            to.x - 80 * (1 - slide),
-            to.y - 70 * (1 - slide) - 25 + i * 5,
-          );
-          c.stroke();
-        }
-        c.restore();
-      }
-      if ((action.kind === "spring" || action.kind === "heal") && p > 0.2) {
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        c.strokeStyle = "#fff030";
-        c.shadowColor = "#ffdb00";
-        c.shadowBlur = 18;
-        c.lineWidth = 3;
-        for (let j = 0; j < 3; j++) {
-          c.beginPath();
-          c.ellipse(
-            to.x,
-            to.y - 50,
-            45 + j * 8,
-            65 + j * 8,
-            now * 0.001 + j,
-            0,
-            7,
-          );
-          c.stroke();
-        }
-        this.text("+", to.x, to.y - 60, "#e8ff64", 45);
-        c.restore();
-      }
-      if (p > 0.45 && !hit.heal) {
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        c.globalAlpha = Math.max(0, 1 - (p - 0.45) / 0.5);
-        const radius = 15 + (p - 0.45) * 140;
-        const gradient = c.createRadialGradient(
-          to.x,
-          to.y - 48,
-          0,
-          to.x,
-          to.y - 48,
-          radius,
-        );
-        gradient.addColorStop(0, "#fffff7");
-        gradient.addColorStop(0.2, "#ffe982");
-        gradient.addColorStop(1, "#ff600000");
-        c.fillStyle = gradient;
-        c.fillRect(to.x - radius, to.y - 48 - radius, radius * 2, radius * 2);
-        c.strokeStyle = "#fff0a0";
-        c.lineWidth = 4;
-        for (let i = 0; i < 7; i++) {
-          const a = i * 0.897;
-          c.beginPath();
-          c.moveTo(
-            to.x + Math.cos(a) * radius * 0.4,
-            to.y - 48 + Math.sin(a) * radius * 0.4,
-          );
-          c.lineTo(
-            to.x + Math.cos(a) * radius,
-            to.y - 48 + Math.sin(a) * radius,
-          );
+          c.moveTo(to.x - 50 + i * 20, to.y - 140);
+          c.lineTo(to.x + 15 + i * 20, to.y);
           c.stroke();
         }
         c.restore();

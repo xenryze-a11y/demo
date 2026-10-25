@@ -8,7 +8,7 @@
     />
     <meta name="theme-color" content="#08090c" />
     <title>圣剑联盟 · 实机交互复刻 Demo</title>
-    <link rel="stylesheet" href="./src/style.css?v=4f68d6b04255" />
+    <link rel="stylesheet" href="./src/style.css?v=e7b6ee51ab02" />
   </head>
   <body>
     <div id="viewport">
@@ -23,23 +23,25 @@
         <button id="back" class="back-button" aria-label="返回关卡地图">
           <span>➜</span><b>返回</b>
         </button>
-        <button id="training" class="ornate blue training-entry">
-          英雄强化
+        <button
+          id="more"
+          class="small-control"
+          aria-label="展开游戏功能"
+          aria-expanded="false"
+        >
+          ⋯
         </button>
-        <button id="bossChallenge" class="ornate gold boss-entry">Boss 挑战</button>
-        <button id="mainCharacter" class="ornate blue main-entry">主角技能</button>
-        <div id="heroSkillBar" hidden aria-label="英雄主动技能"></div>
-        <div id="stageTitle">
-          <b>关卡:<span id="stageName">德玛西亚</span></b
-          ><span id="stageNumber">1-4 <i>★</i></span>
-        </div>
-        <div class="formation-count" id="formationCount">
-          可上阵英雄：<b>0</b>
-        </div>
-        <div class="upper-tools">
-          <div class="currency" id="currency">
-            <i>◉</i><span id="coinCount">0</span>
-          </div>
+        <aside id="extrasMenu" hidden aria-label="游戏功能">
+          <button id="training" class="ornate blue training-entry">
+            英雄强化
+          </button>
+          <button id="bossChallenge" class="ornate gold boss-entry">
+            Boss 挑战
+          </button>
+          <button id="mainCharacter" class="ornate blue main-entry">
+            主角技能
+          </button>
+          <div id="heroSkillBar" hidden aria-label="英雄主动技能"></div>
           <button
             id="audio"
             class="small-control"
@@ -52,6 +54,21 @@
           ><button id="fullscreen" class="small-control" aria-label="切换全屏">
             ⛶
           </button>
+          <button id="pause" class="small-control" hidden aria-label="暂停战斗">
+            Ⅱ
+          </button>
+        </aside>
+        <div id="stageTitle">
+          <b>关卡:<span id="stageName">德玛西亚</span></b
+          ><span id="stageNumber">1-4 <i>★</i></span>
+        </div>
+        <div class="formation-count" id="formationCount">
+          可上阵英雄：<b>0</b>
+        </div>
+        <div class="upper-tools">
+          <div class="currency" id="currency">
+            <i>◉</i><span id="coinCount">0</span>
+          </div>
         </div>
         <div id="formationBar">
           <button id="assist" class="ornate blue">好友助阵</button
@@ -62,7 +79,7 @@
         </div>
         <div id="combatBar" hidden>
           <button id="auto" class="auto-button">自动<br />战斗</button>
-          <div class="vitals" aria-label="队伍生命与能量">
+          <div class="vitals" aria-label="主角生命与怒气">
             <div class="vital-liquid">
               <div class="health-liquid"><i id="hpLiquid"></i></div>
               <div class="mana-liquid"><i id="mpLiquid"></i></div>
@@ -81,9 +98,6 @@
         </div>
         <div id="fightBanner" hidden>FIGHT!</div>
         <div id="roundLabel" hidden>第 1 回合</div>
-        <button id="pause" class="small-control" hidden aria-label="暂停战斗">
-          Ⅱ
-        </button>
         <div id="targetHint" hidden>
           请选择攻击目标 <button id="cancelTarget">取消 ×</button>
         </div>
@@ -100,6 +114,6 @@
     <div class="portrait-hint">
       ↻ 横屏游玩，体验更接近实机录像 <button id="mobileFull">全屏</button>
     </div>
-    <script type="module" src="./src/main.js?v=4f68d6b04255"></script>
+    <script type="module" src="./src/main.js?v=e7b6ee51ab02"></script>
   </body>
 </html>

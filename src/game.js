@@ -6,15 +6,15 @@ import {
   getHero,
   isProtagonist,
   HERO_SKILLS,
-  spellsFor,
-} from "./data.js?v=4f68d6b04255";
+  equippedSpells,
+} from "./data.js?v=e7b6ee51ab02";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=4f68d6b04255";
+} from "./state.js?v=e7b6ee51ab02";
 import {
   createBattle,
   living,
@@ -25,12 +25,12 @@ import {
   spellAction,
   heroSkillAction,
   applyAction,
-} from "./battle.js?v=4f68d6b04255";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=4f68d6b04255";
-import { Battlefield } from "./renderer.js?v=4f68d6b04255";
-import { Sound } from "./audio.js?v=4f68d6b04255";
-import { createMainPanel } from "./main-character.js?v=4f68d6b04255";
-import { createTraining } from "./training.js?v=4f68d6b04255";
+} from "./battle.js?v=e7b6ee51ab02";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=e7b6ee51ab02";
+import { Battlefield } from "./renderer.js?v=e7b6ee51ab02";
+import { Sound } from "./audio.js?v=e7b6ee51ab02";
+import { createMainPanel } from "./main-character.js?v=e7b6ee51ab02";
+import { createTraining } from "./training.js?v=e7b6ee51ab02";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -89,6 +89,16 @@ export async function mountGame(root = document) {
       toast("当前浏览器不支持全屏，可横屏游玩");
     }
   }
+  $("#more").onclick = () => {
+    $("#extrasMenu").hidden = !$("#extrasMenu").hidden;
+    $("#more").setAttribute("aria-expanded", String(!$("#extrasMenu").hidden));
+  };
+  listen($("#extrasMenu"), "click", (e) => {
+    if (e.target.closest("button")) {
+      $("#extrasMenu").hidden = true;
+      $("#more").setAttribute("aria-expanded", "false");
+    }
+  });
   $("#fullscreen").onclick = fullscreen;
   $("#mobileFull").onclick = fullscreen;
   try {
@@ -112,6 +122,31 @@ export async function mountGame(root = document) {
   $("#game").style.setProperty("--map-image", `url("${ART.map.src}")`);
   $("#game").style.setProperty("--native-blue", `url("${ART.buttonBlue.src}")`);
   $("#game").style.setProperty("--native-gold", `url("${ART.buttonGold.src}")`);
+  for (const key of [
+    "orbRedFrame",
+    "orbBlueFrame",
+    "orbRedFill",
+    "orbBlueFill",
+    "skillFrame",
+    "skillGlow",
+    "costFrame",
+    "autoOff",
+    "autoOn",
+    "speed1",
+    "speed2",
+    "skipButton",
+    "backButton",
+    "countFrame",
+    "bottomLine",
+    "chestRune",
+    "winText",
+    "expFrame",
+    "expIcon",
+    "goldIcon",
+    "levelTitle",
+    "levelGlow",
+  ])
+    $("#game").style.setProperty("--" + key, `url("${ART[key].src}")`);
   HEROES.forEach((h) => portraits.set(h.id, portrait(h.sprite)));
   closedChest = chestImage(false);
   openChest = chestImage(true);
@@ -133,6 +168,8 @@ export async function mountGame(root = document) {
   }
   function setMode(mode) {
     state.mode = mode;
+    $("#extrasMenu").hidden = true;
+    $("#more").setAttribute("aria-expanded", "false");
     $("#game").dataset.mode = mode;
     const formation = mode === "formation",
       battle = mode === "battle";
@@ -372,7 +409,7 @@ export async function mountGame(root = document) {
       "help",
       frame(
         "操作说明",
-        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>英雄按速度轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部六格为当前主角技能，点击后按提示选敌人；左侧头像为英雄主动技，也会每隔一回合自动触发。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–6 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
+        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>英雄按速度轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部三个技能点击即可指挥释放；空槽保留原画面布局。在「主角技能」中更换出战技能。普通英雄从首次行动起按「技能→普攻→普攻」循环，卡塔琳娜会前移旋转并返回阵位。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–3 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
         "help-window",
       ),
     );
@@ -554,8 +591,9 @@ export async function mountGame(root = document) {
     const b = state.battle;
     if (!b) return;
     const allies = b.units.filter((u) => u.side === "ally"),
-      hp = allies.reduce((s, u) => s + u.hp, 0),
-      max = allies.reduce((s, u) => s + u.maxHp, 0);
+      main = allies.find((u) => u.category === "protagonist"),
+      hp = main?.hp || 0,
+      max = main?.maxHp || 1;
     $("#hpValue").textContent = Math.ceil(hp);
     $("#mpValue").textContent = b.energy;
     $("#hpLiquid").style.height = (hp / max) * 100 + "%";
@@ -563,20 +601,27 @@ export async function mountGame(root = document) {
     $("#roundLabel").textContent = `第 ${b.round} 回合`;
     $("#auto").classList.toggle("active", state.auto);
     $("#speed b").textContent = "×" + state.speed;
-    $("#skillBar").innerHTML = spellsFor(b)
-      .map((s, i) => {
-        const cd = b.cooldowns[s.id] || 0,
-          disabled =
-            state.mode !== "battle" ||
-            b.energy < s.cost ||
-            cd > 0 ||
-            !living(b, "ally").some(
-              (u) => u.category === "protagonist" && !u.silence,
-            ),
-          queued = state.pending?.id === s.id || state.targeting === s.id;
-        return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="skill-name">${s.name}</span><span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
-      })
-      .join("");
+    $("#speed").style.backgroundImage = `var(--speed${state.speed})`;
+    $("#skillBar").innerHTML =
+      equippedSpells(b, save.skillLoadouts)
+        .map((s, i) => {
+          const cd = b.cooldowns[s.id] || 0,
+            disabled =
+              state.mode !== "battle" ||
+              b.energy < s.cost ||
+              cd > 0 ||
+              !living(b, "ally").some(
+                (u) =>
+                  u.category === "protagonist" &&
+                  !u.silence &&
+                  !u.stun &&
+                  u.hp > 0,
+              ),
+            queued = state.pending?.id === s.id || state.targeting === s.id;
+          return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="skill-name">${s.name}</span><span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
+        })
+        .join("") +
+      '<span class="skill empty" aria-label="空技能槽"></span>'.repeat(3);
     $("#heroSkillBar").innerHTML = allies
       .filter((u) => HERO_SKILLS[u.id])
       .map(
@@ -628,11 +673,11 @@ export async function mountGame(root = document) {
     if (state.pending) return toast("已有技能等待释放");
     if (b.cooldowns[id]) return toast("技能冷却中");
     if (b.energy < s.cost) return toast("能量不足，可先释放产能技能");
-    if (s.target === "enemy") {
-      state.targeting = state.targeting === id ? null : id;
-      $("#targetHint").hidden = !state.targeting;
-      updateBattle();
-    } else queueSpell(id);
+    // In the footage, a tap commands the skill without stopping for a second target tap.
+    const target = living(b, "enemy").sort(
+      (a, c) => (a.slot % 3) - (c.slot % 3) || a.slot - c.slot,
+    )[0];
+    queueSpell(id, target?.id);
   }
   function queueSpell(id, target) {
     state.pending = { id, target };
@@ -650,17 +695,34 @@ export async function mountGame(root = document) {
     state.anim = {
       action,
       elapsed: 0,
-      duration: ["attack", "bolt", "heal"].includes(action.kind) ? 720 : 1450,
+      duration:
+        action.kind === "lotus"
+          ? 2400
+          : ["attack", "bolt", "heal"].includes(action.kind)
+            ? 980
+            : action.multi
+              ? 1700
+              : 1350,
       applied: false,
       appliedHits: 0,
     };
+    root.dispatchEvent(
+      new CustomEvent("battleaction", {
+        detail: {
+          actor: action.actor,
+          kind: action.kind,
+          round: state.battle.round,
+          duration: state.anim.duration,
+        },
+      }),
+    );
     updateBattle();
   }
   function chooseAuto() {
     const b = state.battle,
       main = living(b, "ally").find((u) => u.category === "protagonist");
     if (!main || main.silence) return null;
-    const skills = spellsFor(b).filter(
+    const skills = equippedSpells(b, save.skillLoadouts).filter(
       (s) => !b.cooldowns[s.id] && b.energy >= s.cost,
     );
     const heal = skills.find(
@@ -680,17 +742,28 @@ export async function mountGame(root = document) {
       const a = state.anim;
       a.elapsed += dt;
       const total = a.action.targets.length;
-      const due = a.action.multi
-        ? Math.min(
-            total,
-            Math.max(
+      const due =
+        a.action.kind === "lotus"
+          ? Math.max(
               0,
-              Math.floor(((a.elapsed / a.duration - 0.28) / 0.55) * total) + 1,
-            ),
-          )
-        : a.elapsed >= a.duration * 0.52
-          ? total
-          : 0;
+              Math.min(
+                3,
+                Math.floor((a.elapsed / a.duration - 0.28) / 0.22) + 1,
+              ),
+            ) *
+            (total / 3)
+          : a.action.multi
+            ? Math.min(
+                total,
+                Math.max(
+                  0,
+                  Math.floor(((a.elapsed / a.duration - 0.28) / 0.55) * total) +
+                    1,
+                ),
+              )
+            : a.elapsed >= a.duration * 0.52
+              ? total
+              : 0;
       if (due > a.appliedHits) {
         applyAction(b, a.action, a.appliedHits, due, due === total);
         for (const h of a.action.targets.slice(a.appliedHits, due)) {
@@ -864,7 +937,7 @@ export async function mountGame(root = document) {
       up = levelFor(save.xp) > r.oldLevel;
     showModal(
       "result",
-      `<section class="result-screen ${r.victory ? "" : "result-defeat"}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "经验卡 +1 已入库 · 请选择一个宝箱"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.choice === i ? openChest : closedChest}" alt="${r.choice === i ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage === 3 ? "返回布阵" : state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
+      `<section class="result-screen ${r.victory ? "" : "result-defeat"} ${r.claimed ? "claimed" : ""}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "请选择一个宝箱，抽取您的奖励"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.claimed ? openChest : closedChest}" alt="${r.claimed ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage === 3 ? "返回布阵" : state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
     );
     if (r.victory) {
       root
@@ -892,11 +965,17 @@ export async function mountGame(root = document) {
       };
       $("#retry").onclick = startBattle;
     }
+    if (r.victory && r.claimed) {
+      const prize = document.createElement("div");
+      prize.className = "chest-prize";
+      prize.innerHTML = `<img src="${(r.choice === 1 ? ART.crystalIcon : ART.goldIcon).src}" alt=""><b>${r.rewardText}</b>`;
+      $(".result-screen").append(prize);
+    }
     if (r.claimed && up && !r.levelShown) {
       r.levelShown = true;
       const level = document.createElement("div");
       level.className = "level-popup";
-      level.innerHTML = `<div class="level-halo"></div><h2>LEVEL UP</h2><img src="${portraits.get("blade")}" alt="英雄升级"><strong>Lv.${levelFor(save.xp)}</strong><p>玩家等级提升 · 英雄可通过经验卡强化</p><button class="ornate gold" id="levelConfirm">确定</button>`;
+      level.innerHTML = `<div class="level-halo"></div><h2>LEVEL UP</h2><img src="${portraits.get(state.formation.find(isProtagonist))}" alt="主角升级"><strong>Lv.${levelFor(save.xp)}</strong><p>玩家等级提升 · 英雄可通过经验卡强化</p><button class="ornate gold" id="levelConfirm">确定</button>`;
       $("#overlayContent").append(level);
       $("#levelConfirm").onclick = () => {
         level.remove();
@@ -987,8 +1066,11 @@ export async function mountGame(root = document) {
         e.preventDefault();
         togglePause();
       }
-      if (/^[1-6]$/.test(e.key))
-        selectSpell(spellsFor(state.battle)[Number(e.key) - 1].id);
+      if (/^[1-3]$/.test(e.key))
+        selectSpell(
+          equippedSpells(state.battle, save.skillLoadouts)[Number(e.key) - 1]
+            .id,
+        );
     } else if (
       state.mode === "formation" &&
       document.activeElement === field &&

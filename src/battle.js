@@ -1,5 +1,5 @@
-import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=4f68d6b04255";
-import { heroStats } from "./progression.js?v=4f68d6b04255";
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=e7b6ee51ab02";
+import { heroStats } from "./progression.js?v=e7b6ee51ab02";
 export function createBattle(
   formation,
   stageId = 0,
@@ -91,8 +91,6 @@ export function beginNextRound(b) {
     if (!unit.shieldTurns) unit.shield = 0;
     if (!unit.reflectTurns) unit.reflect = 0;
   }
-  for (const id of Object.keys(b.heroCooldowns))
-    b.heroCooldowns[id] = Math.max(0, b.heroCooldowns[id] - 1);
   b.round++;
   b.spellUsed = false;
   for (const key of Object.keys(b.cooldowns))
@@ -139,14 +137,13 @@ export function basicAction(b, actor, random = Math.random) {
       })),
     };
   }
-  if (
-    actor.side === "ally" &&
-    HERO_SKILLS[actor.id] &&
-    b.round % 2 === 0 &&
-    !actor.silence &&
-    !b.heroCooldowns[actor.id]
-  )
-    return heroSkillAction(b, actor.id);
+  // Per-hero action cycle: skill, basic, basic, then skill again.
+  // A stunned/skipped action never advances this counter; rounds alone do not reset it.
+  if (HERO_SKILLS[actor.heroSkillId || actor.id]) {
+    if (!(b.heroCooldowns[actor.id] > 0) && !actor.silence && !actor.stun)
+      return heroSkillAction(b, actor.id);
+    if (b.heroCooldowns[actor.id] > 0) b.heroCooldowns[actor.id]--;
+  }
   const target = chooseTarget(b, actor);
   if (!target) return null;
   const heal = target.side === actor.side,
@@ -183,7 +180,8 @@ export function spellAction(b, id, targetId) {
     (unit) => unit.category === "protagonist" && unit.classId === s.classId,
   );
   if (!actor) return { error: "对应主角未出战或已倒下" };
-  if (actor.silence || actor.stun) return { error: "主角被控制，暂时无法释放技能" };
+  if (actor.silence || actor.stun)
+    return { error: "主角被控制，暂时无法释放技能" };
   if (b.outcome) return { error: "战斗已经结束" };
   if (b.energy < s.cost) return { error: "怒气不足" };
   if (b.cooldowns[id] > 0)
@@ -234,31 +232,35 @@ export function spellAction(b, id, targetId) {
   };
 }
 export function heroSkillAction(b, id) {
-  const actor = living(b, "ally").find((u) => u.id === id),
-    skill = HERO_SKILLS[id];
+  const actor = living(b).find((u) => u.id === id),
+    skillId = actor?.heroSkillId || id,
+    skill = HERO_SKILLS[skillId];
   if (!actor || !skill) return { error: "英雄未出战或已倒下" };
-  if (actor.silence || actor.stun) return { error: "英雄被控制，暂时无法释放技能" };
+  if (actor.silence || actor.stun)
+    return { error: "英雄被控制，暂时无法释放技能" };
   if (b.heroCooldowns[id] > 0) return { error: "英雄技冷却中" };
-  const target = chooseTarget(b, actor),
-    enemies = living(b, "enemy");
+  const enemies = living(b, actor.side === "ally" ? "enemy" : "ally"),
+    target = enemies.slice().sort((a, c) => a.slot - c.slot)[0];
+  if (!target) return { error: "没有可攻击的目标" };
   let targets = [];
-  if (id === "sun")
+  if (skillId === "sun")
     targets = [
       { id, amount: 0, shield: Math.round(actor.maxHp * 0.35), turns: 2 },
     ];
-  if (id === "blade") targets = [{ id, amount: 0, reflect: 0.7, turns: 2 }];
-  if (id === "pirate")
+  if (skillId === "blade")
+    targets = [{ id, amount: 0, reflect: 0.7, turns: 2 }];
+  if (skillId === "pirate")
     targets = enemies
       .filter((u) => u.slot % 3 === target.slot % 3)
       .slice(0, 2)
       .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 1.35) }));
-  if (id === "rogue")
+  if (skillId === "rogue")
     targets = Array.from({ length: 3 }, () =>
       enemies
         .slice(0, 3)
         .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 0.65) })),
     ).flat();
-  if (id === "wind")
+  if (skillId === "wind")
     targets = enemies
       .filter((u) => u.slot % 3 === target.slot % 3)
       .map((u) => ({
@@ -274,8 +276,9 @@ export function heroSkillAction(b, id) {
     actor: id,
     animation: skill.animation,
     targets,
-    multi: id === "rogue",
+    multi: skillId === "rogue",
     heroSkill: true,
+    movement: skillId === "rogue" ? "advance-spin" : null,
   };
 }
 export function applyAction(

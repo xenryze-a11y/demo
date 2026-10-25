@@ -1,5 +1,12 @@
-import { DEFAULT_FORMATION, HEROES, MAX_PARTY, isProtagonist } from "./data.js?v=4f68d6b04255";
-import { normalizeHeroProgress } from "./progression.js?v=4f68d6b04255";
+import {
+  DEFAULT_FORMATION,
+  HEROES,
+  MAX_PARTY,
+  isProtagonist,
+  MAIN_CLASSES,
+  skillLoadout,
+} from "./data.js?v=e7b6ee51ab02";
+import { normalizeHeroProgress } from "./progression.js?v=e7b6ee51ab02";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,
@@ -11,6 +18,9 @@ export const freshSave = () => ({
   stars: {},
   sound: false,
   trainingCards: 6,
+  skillLoadouts: Object.fromEntries(
+    MAIN_CLASSES.map((id) => [id, skillLoadout(id)]),
+  ),
   heroProgress: Object.fromEntries(
     HEROES.map((h) => [h.id, { level: 6, xp: 178 }]),
   ),
@@ -23,6 +33,8 @@ export function normalizeSave(raw) {
       clean[key] = Math.floor(raw[key]);
   clean.unlocked = Math.max(0, Math.min(2, Number(raw.unlocked) || 0));
   clean.sound = raw.sound === true;
+  for (const id of MAIN_CLASSES)
+    clean.skillLoadouts[id] = skillLoadout(id, raw.skillLoadouts?.[id]);
   if (raw.trainingCards !== undefined)
     clean.trainingCards = Number.isFinite(raw.trainingCards)
       ? Math.max(0, Math.min(9999, Math.floor(raw.trainingCards)))
@@ -48,12 +60,14 @@ export function normalizeSave(raw) {
   }
   const mains = clean.formation.filter(isProtagonist);
   if (!mains.length) {
-    const index = clean.formation.filter(Boolean).length >= MAX_PARTY
-      ? (clean.formation[5] ? 5 : clean.formation.findLastIndex(Boolean))
-      : clean.formation.findIndex(id => !id);
+    const index =
+      clean.formation.filter(Boolean).length >= MAX_PARTY
+        ? clean.formation[5]
+          ? 5
+          : clean.formation.findLastIndex(Boolean)
+        : clean.formation.findIndex((id) => !id);
     clean.formation[index] = "ranger";
-  }
-  else
+  } else
     clean.formation = clean.formation.map((id) =>
       isProtagonist(id) && id !== mains[0] ? null : id,
     );

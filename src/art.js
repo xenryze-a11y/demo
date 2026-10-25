@@ -1,8 +1,10 @@
-import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=4f68d6b04255";
+import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=e7b6ee51ab02";
+import { NATIVE_UI_URLS } from "./native-ui.js?v=e7b6ee51ab02";
 const urls = {
+  ...NATIVE_UI_URLS,
   map: new URL("../assets/map.png", import.meta.url).href,
   sprites: new URL("../assets/heroes.png", import.meta.url).href,
-  victory: new URL("../assets/victory.png", import.meta.url).href,
+  victory: NATIVE_UI_URLS.victory,
   chests: new URL("../assets/chests.png", import.meta.url).href,
   rig0_0: new URL("../assets/native/rig0_0.png", import.meta.url).href,
   card0: new URL("../assets/native/card0.jpg", import.meta.url).href,
@@ -178,6 +180,7 @@ export function portrait(index) {
   return cv.toDataURL("image/png");
 }
 export function chestImage(open) {
+  if (ART.chestClosed) return ART[open ? "chestOpen" : "chestClosed"].src;
   const b = ART.chestBounds[open ? 1 : 0],
     cv = document.createElement("canvas");
   cv.width = b.w;

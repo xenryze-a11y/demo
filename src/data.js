@@ -160,6 +160,7 @@ export const ENEMIES = {
     level: 2,
   },
   wind: {
+    heroSkillId: "wind",
     name: "风之女",
     kind: "healer",
     sprite: 5,
@@ -286,12 +287,13 @@ export const SPELLS = [
     classId: "ranger",
     nativeId: 12051,
     name: "爆裂射击",
-    cost: 25,
-    cooldown: 2,
+    cost: 0,
+    gain: 20,
+    cooldown: 1,
     target: "enemy",
     pattern: "row",
     ratio: 1.3,
-    description: "对目标及同排敌人造成溅射伤害",
+    description: "对目标及同排敌人造成溅射伤害，怒气+20",
   },
   {
     id: "frostShot",
@@ -535,3 +537,24 @@ export const DEFAULT_FORMATION = [
 ];
 export const MAX_PARTY = 5;
 export const getHero = (id) => HEROES.find((h) => h.id === id);
+
+// The recorded low-level battle has three equipped cards and three empty slots.
+// The full six-skill library remains selectable in the protagonist panel.
+export function skillLoadout(classId, raw) {
+  const pool = SPELLS.filter((s) => s.classId === classId).map((s) => s.id);
+  const chosen = Array.isArray(raw)
+    ? [...new Set(raw.filter((id) => pool.includes(id)))].slice(0, 3)
+    : [];
+  for (const id of classId === "ranger"
+    ? ["bloodShot", "snipe", "blastShot", ...pool]
+    : pool)
+    if (chosen.length < 3 && !chosen.includes(id)) chosen.push(id);
+  return chosen;
+}
+export function equippedSpells(battle, loadouts = {}) {
+  const pool = spellsFor(battle),
+    id = pool[0]?.classId;
+  return skillLoadout(id, loadouts[id])
+    .map((id) => pool.find((s) => s.id === id))
+    .filter(Boolean);
+}

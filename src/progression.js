@@ -1,4 +1,4 @@
-import { isProtagonist } from "./data.js?v=4f68d6b04255";
+import { isProtagonist } from "./data.js?v=e7b6ee51ab02";
 // Hero training is independent of account experience and has no DOM dependencies.
 export const TRAINING_CARD_XP = 169;
 export const HERO_LEVEL_CAP = 30;

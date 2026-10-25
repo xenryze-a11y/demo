@@ -1,4 +1,7 @@
-import { NATIVE_MODELS } from "./native-data.js?v=4f68d6b04255";
+import { NATIVE_MODELS } from "./native-data.js?v=e7b6ee51ab02";
+import { NATIVE_EFFECTS } from "./native-effects.js?v=e7b6ee51ab02";
+const modelAt = (index) =>
+  index >= 100 ? NATIVE_EFFECTS[index - 100] : NATIVE_MODELS[index];
 let nativeImages;
 const nativeBounds = [];
 function nativeMultiply(a, b) {
@@ -48,9 +51,14 @@ export function nativePose(
   seconds = 0,
   loop = true,
 ) {
-  const model = NATIVE_MODELS[index];
+  const model = modelAt(index);
   if (!model) return [];
-  const move = model.moves[animation] || (animation.startsWith("skill") ? model.moves.skill1 : null) || model.moves.stand;
+  const move =
+    model.moves[animation] ||
+    (animation.startsWith("skill") ? model.moves.skill1 : null) ||
+    model.moves.stand ||
+    model.moves["kate_sk1.2"] ||
+    Object.values(model.moves)[0];
   const time = loop
     ? (seconds * 30) % Math.max(1, move.dr - 1)
     : Math.min(move.dr - 1, Math.max(0, seconds * 30));
@@ -96,6 +104,7 @@ export function nativePose(
           texture,
           z: bone.z + (track.z || 0),
           alpha: (track.color?.a ?? 255) / 255,
+          additive: index >= 100 || /^(a_|b_)/.test(bone.name),
         },
       ];
     })
@@ -103,12 +112,17 @@ export function nativePose(
 }
 export function initNativeRigs(images) {
   nativeImages = images;
-  for (let i = 0; i < NATIVE_MODELS.length; i++) {
+  for (const i of [
+    ...NATIVE_MODELS.map((_, i) => i),
+    ...NATIVE_EFFECTS.map((_, i) => i + 100),
+  ]) {
     let left = Infinity,
       right = -Infinity,
       bottom = Infinity,
       top = -Infinity;
-    for (const part of nativePose(i)) {
+    for (const part of i >= 100
+      ? [0.1, 0.3, 0.6].flatMap((t) => nativePose(i, "stand", t, false))
+      : nativePose(i)) {
       const f = part.frame,
         t = part.texture,
         m = part.matrix;
@@ -135,7 +149,7 @@ export function initNativeRigs(images) {
     nativeBounds[i] = {
       center: (left + right) / 2,
       bottom,
-      height: top - bottom,
+      height: Math.max(1, top - bottom),
     };
   }
 }
@@ -164,6 +178,7 @@ export function drawNativeRig(
       t = part.texture;
     c.save();
     c.globalAlpha *= part.alpha;
+    if (part.additive) c.globalCompositeOperation = "lighter";
     c.transform(...part.matrix);
     c.scale(1, -1);
     c.drawImage(
@@ -183,4 +198,26 @@ export function drawNativeRig(
   }
   c.restore();
   return true;
+}
+
+export function nativeDuration(index, animation = "attack") {
+  const m = modelAt(index);
+  const move = m?.moves[animation] || m?.moves.stand;
+  return move ? move.dr / 30 : 0.72;
+}
+export function drawNativeEffect(c, name, x, y, height, seconds, loop = false) {
+  const i = NATIVE_EFFECTS.findIndex((m) => m.id === name);
+  if (i < 0) return false;
+  return drawNativeRig(
+    c,
+    100 + i,
+    x,
+    y,
+    height,
+    false,
+    1,
+    "stand",
+    seconds,
+    loop,
+  );
 }
