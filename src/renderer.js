@@ -1,5 +1,5 @@
-import { ART, drawSprite } from "./art.js";
-import { HEROES, ENEMIES, STAGES, getHero } from "./data.js";
+import { ART, drawSprite } from "./art.js?v=88b1ca87e0ed";
+import { HEROES, ENEMIES, STAGES, getHero } from "./data.js?v=88b1ca87e0ed";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
@@ -253,7 +253,10 @@ export class Battlefield {
         c.fill();
         c.stroke();
         this.text(
-          String(u.side === "ally" ? state.level || 6 : u.level || 2),
+          String(
+            u.level ||
+              (u.side === "ally" ? state.heroProgress[u.id]?.level || 6 : 2),
+          ),
           x - 44,
           barY + 14,
           "#fff",

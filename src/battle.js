@@ -1,24 +1,27 @@
-import { getHero, ENEMIES, SPELLS, STAGES } from "./data.js";
+import { getHero, ENEMIES, SPELLS, STAGES } from "./data.js?v=88b1ca87e0ed";
+import { heroStats } from "./progression.js?v=88b1ca87e0ed";
 export function createBattle(
   formation,
   stageId = 0,
   level = 1,
   difficulty = 0,
+  heroProgress = {},
 ) {
   const stage = STAGES[stageId];
   const allies = formation.flatMap((id, slot) => {
     if (!id) return [];
     const h = getHero(id),
-      bonus = 1 + (level - 1) * 0.07;
+      heroLevel = heroProgress[id]?.level ?? level,
+      stats = heroStats(h, heroLevel);
     return [
       {
         ...h,
         id,
         side: "ally",
         slot,
-        maxHp: Math.round(h.hp * bonus),
-        hp: Math.round(h.hp * bonus),
-        attack: Math.round(h.attack * bonus),
+        ...stats,
+        level: heroLevel,
+        maxHp: stats.hp,
       },
     ];
   });

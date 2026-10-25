@@ -1,4 +1,5 @@
-import { DEFAULT_FORMATION, HEROES, MAX_PARTY } from "./data.js";
+import { DEFAULT_FORMATION, HEROES, MAX_PARTY } from "./data.js?v=88b1ca87e0ed";
+import { normalizeHeroProgress } from "./progression.js?v=88b1ca87e0ed";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,
@@ -9,6 +10,10 @@ export const freshSave = () => ({
   unlocked: 0,
   stars: {},
   sound: false,
+  trainingCards: 6,
+  heroProgress: Object.fromEntries(
+    HEROES.map((h) => [h.id, { level: 6, xp: 178 }]),
+  ),
 });
 export function normalizeSave(raw) {
   const clean = freshSave();
@@ -18,6 +23,15 @@ export function normalizeSave(raw) {
       clean[key] = Math.floor(raw[key]);
   clean.unlocked = Math.max(0, Math.min(2, Number(raw.unlocked) || 0));
   clean.sound = raw.sound === true;
+  if (raw.trainingCards !== undefined)
+    clean.trainingCards = Number.isFinite(raw.trainingCards)
+      ? Math.max(0, Math.min(9999, Math.floor(raw.trainingCards)))
+      : 0;
+  for (const hero of HEROES)
+    clean.heroProgress[hero.id] = normalizeHeroProgress(
+      raw.heroProgress?.[hero.id],
+      Math.min(30, levelFor(clean.xp)),
+    );
   const used = new Set();
   if (Array.isArray(raw.formation) && raw.formation.length === 9) {
     clean.formation = raw.formation.map((id) => {

@@ -1,11 +1,11 @@
-import { HEROES, STAGES, SPELLS, DEFAULT_FORMATION, getHero } from "./data.js";
+import { HEROES, STAGES, SPELLS, DEFAULT_FORMATION, getHero } from "./data.js?v=88b1ca87e0ed";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js";
+} from "./state.js?v=88b1ca87e0ed";
 import {
   createBattle,
   living,
@@ -15,10 +15,11 @@ import {
   basicAction,
   spellAction,
   applyAction,
-} from "./battle.js";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js";
-import { Battlefield } from "./renderer.js";
-import { Sound } from "./audio.js";
+} from "./battle.js?v=88b1ca87e0ed";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=88b1ca87e0ed";
+import { Battlefield } from "./renderer.js?v=88b1ca87e0ed";
+import { Sound } from "./audio.js?v=88b1ca87e0ed";
+import { createTraining } from "./training.js?v=88b1ca87e0ed";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -47,6 +48,7 @@ export async function mountGame(root = document) {
     auto: false,
     speed: 1,
     level: levelFor(save.xp),
+    heroProgress: save.heroProgress,
     wait: 0,
     loading: 0,
   };
@@ -81,14 +83,19 @@ export async function mountGame(root = document) {
   try {
     await loadArt((completed, total) => {
       if (!$("#retryLoad").hidden) return;
-      $("#loading small").textContent = `正在加载场景与英雄… ${completed}/${total}`;
-      $("#loading i").style.width = `${completed / total * 100}%`;
+      $("#loading small").textContent =
+        `正在加载场景与英雄… ${completed}/${total}`;
+      $("#loading i").style.width = `${(completed / total) * 100}%`;
     });
   } catch (error) {
     $("#loading small").textContent = "加载未完成，请检查网络后重试";
     $("#retryLoad").hidden = false;
     $("#retryLoad").onclick = () => location.reload();
-    return { destroy() { controller.abort(); } };
+    return {
+      destroy() {
+        controller.abort();
+      },
+    };
   }
   if (disposed) return;
   $("#game").style.setProperty("--map-image", `url("${ART.map.src}")`);
@@ -117,6 +124,7 @@ export async function mountGame(root = document) {
     const formation = mode === "formation",
       battle = mode === "battle";
     $("#formationBar").hidden = !formation;
+    $("#training").hidden = !formation;
     $("#formationCount").hidden = !formation;
     $("#combatBar").hidden = formation || mode === "loading";
     $("#currency").hidden = formation;
@@ -245,11 +253,12 @@ export async function mountGame(root = document) {
       "heroes",
       frame(
         "更换英雄",
-        `<p class="window-description">点击英雄，再选择阵位。已有英雄会被替换；最多上阵 5 人。</p><div class="hero-list">${HEROES.map((h) => `<button class="hero-card ${state.selected === h.id ? "selected" : ""}" data-hero="${h.id}" aria-pressed="${state.selected === h.id}"><img src="${portraits.get(h.id)}" alt="${h.name}"><strong style="color:${h.color}">${h.name}</strong><small>${h.role} · Lv.${state.level}</small><span class="deployed">${state.formation.includes(h.id) ? "已上阵" : "可上阵"}</span></button>`).join("")}</div><div class="hero-description"><strong style="color:${chosen.color}">${chosen.name} · ${chosen.skill}</strong><br>${chosen.description}</div><div class="slot-grid">${state.formation.map((id, i) => `<button data-slot="${i}" class="${id === state.selected ? "selected" : ""}" aria-label="第${i + 1}阵位">${id ? getHero(id).name : "空位"}</button>`).join("")}</div><div class="window-footer" style="text-align:right"><button class="ornate blue" id="bench" ${state.formation.includes(state.selected) ? "" : "disabled"}>撤下英雄</button>　<button class="ornate gold" data-close>完成</button></div>`,
+        `<p class="window-description">点击英雄，再选择阵位。已有英雄会被替换；最多上阵 5 人。</p><div class="hero-list">${HEROES.map((h) => `<button class="hero-card ${state.selected === h.id ? "selected" : ""}" data-hero="${h.id}" aria-pressed="${state.selected === h.id}"><img src="${portraits.get(h.id)}" alt="${h.name}"><strong style="color:${h.color}">${h.name}</strong><small>${h.role} · Lv.${save.heroProgress[h.id].level}</small><span class="deployed">${state.formation.includes(h.id) ? "已上阵" : "可上阵"}</span></button>`).join("")}</div><div class="hero-description"><strong style="color:${chosen.color}">${chosen.name} · ${chosen.skill}</strong><br>${chosen.description}</div><div class="slot-grid">${state.formation.map((id, i) => `<button data-slot="${i}" class="${id === state.selected ? "selected" : ""}" aria-label="第${i + 1}阵位">${id ? getHero(id).name : "空位"}</button>`).join("")}</div><div class="window-footer" style="text-align:right"><button class="ornate blue" id="heroTraining">英雄强化</button>　<button class="ornate blue" id="bench" ${state.formation.includes(state.selected) ? "" : "disabled"}>撤下英雄</button>　<button class="ornate gold" data-close>完成</button></div>`,
         "hero-window",
       ),
     );
     $("#bench").onclick = () => bench(state.selected);
+    $("#heroTraining").onclick = () => training.open(state.selected);
   }
   function showArrange() {
     const patterns = [
@@ -455,6 +464,18 @@ export async function mountGame(root = document) {
     if (e.target.closest("[data-completed]"))
       toast("此为已完成的前置关卡，请挑战 1-4 至 1-6");
   });
+  const training = createTraining({
+    root,
+    save,
+    portraits,
+    art: ART,
+    showModal,
+    frame,
+    persist,
+    onFormation: showHeroes,
+    play: (kind) => sound.play(kind),
+  });
+  $("#training").onclick = () => training.open();
   $("#back").onclick = showMap;
   $("#heroes").onclick = showHeroes;
   $("#arrange").onclick = showArrange;
@@ -503,6 +524,7 @@ export async function mountGame(root = document) {
       state.stage,
       state.level,
       state.difficulty,
+      save.heroProgress,
     );
     refillQueue(state.battle);
     state.anim = null;
@@ -724,6 +746,7 @@ export async function mountGame(root = document) {
       levelShown: false,
     };
     if (victory) {
+      save.trainingCards = Math.min(9999, save.trainingCards + 1);
       save.gold += result.gold;
       save.xp += result.xp;
       save.unlocked = Math.min(2, Math.max(save.unlocked, state.stage + 1));
@@ -747,7 +770,7 @@ export async function mountGame(root = document) {
       up = levelFor(save.xp) > r.oldLevel;
     showModal(
       "result",
-      `<section class="result-screen ${r.victory ? "" : "result-defeat"}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "请选择一个宝箱，抽取您的奖励"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.choice === i ? openChest : closedChest}" alt="${r.choice === i ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
+      `<section class="result-screen ${r.victory ? "" : "result-defeat"}"><div class="result-band"></div><img class="result-portrait" src="${ART.victory.src}" alt="霜火枪姬胜利立绘"><div class="result-title">${r.victory ? "大获全胜" : "战斗失利"}</div><div class="result-stars">${r.victory ? "★".repeat(r.stars) + `<span class="dim">${"★".repeat(2 - r.stars)}</span>` : ""}</div>${r.victory ? `<div class="reward-line"><div><i class="exp">EXP</i><span id="rewardXp" class="reward-box">+${r.xp}</span></div><div><i class="coin">◉</i><span id="rewardGold" class="reward-box">+${r.gold}</span></div></div><div class="xp-bar"><i style="width:${((save.xp % 62) / 62) * 100}%"></i><span>经验　${save.xp % 62}/62</span></div><div class="chest-prompt">${r.claimed ? "奖励已领取" : "经验卡 +1 已入库 · 请选择一个宝箱"}</div><div class="chest-row">${[0, 1, 2].map((i) => `<button class="chest-button ${r.choice === i ? "selected" : ""}" data-chest="${i}" ${r.claimed ? "disabled" : ""} aria-label="选择第${i + 1}个宝箱"><span class="rune"></span><img src="${r.choice === i ? openChest : closedChest}" alt="${r.choice === i ? "已打开宝箱" : "宝箱"}">${r.choice === i ? `<span class="reward-label">${r.rewardText}</span>` : ""}</button>`).join("")}</div><div class="result-actions" ${r.claimed ? "" : "hidden"}><button class="ornate blue" id="resultMap">退出</button><button class="ornate gold" id="nextStage">${state.stage < 2 ? "下一关" : "再挑战"}</button></div>${confetti()}` : `<div class="chest-prompt">${state.battle.round > 30 ? "战斗超过 30 回合。" : "英雄暂时倒下了。"}<br>调整前排位置，或让「风之女」加入队伍提供治疗。</div><div class="result-actions"><button class="ornate blue" id="retryFormation">调整阵型</button><button class="ornate gold" id="retry">再次挑战</button></div>`}</section>`,
     );
     if (r.victory) {
       root
@@ -779,7 +802,7 @@ export async function mountGame(root = document) {
       r.levelShown = true;
       const level = document.createElement("div");
       level.className = "level-popup";
-      level.innerHTML = `<div class="level-halo"></div><h2>LEVEL UP</h2><img src="${portraits.get("blade")}" alt="英雄升级"><strong>Lv.${levelFor(save.xp)}</strong><p>英雄生命和攻击成长</p><button class="ornate gold" id="levelConfirm">确定</button>`;
+      level.innerHTML = `<div class="level-halo"></div><h2>LEVEL UP</h2><img src="${portraits.get("blade")}" alt="英雄升级"><strong>Lv.${levelFor(save.xp)}</strong><p>玩家等级提升 · 英雄可通过经验卡强化</p><button class="ornate gold" id="levelConfirm">确定</button>`;
       $("#overlayContent").append(level);
       $("#levelConfirm").onclick = () => {
         level.remove();
@@ -824,6 +847,16 @@ export async function mountGame(root = document) {
   };
   listen(window, "keydown", (e) => {
     if (activeModal) {
+      if (e.key === "Escape" && $("#cancelFeed")) {
+        e.preventDefault();
+        $("#cancelFeed").click();
+        return;
+      }
+      if (e.key === "Escape" && activeModal === "training-picker") {
+        e.preventDefault();
+        training.open();
+        return;
+      }
       if (e.key === "Escape" && !["result"].includes(activeModal)) {
         e.preventDefault();
         if (activeModal === "pause") state.paused = false;
@@ -831,7 +864,9 @@ export async function mountGame(root = document) {
       }
       if (e.key === "Tab") {
         const buttons = [
-          ...$("#overlayContent").querySelectorAll("button:not(:disabled)"),
+          ...($(".consume-window") || $("#overlayContent")).querySelectorAll(
+            "button:not(:disabled), input:not(:disabled)",
+          ),
         ];
         if (buttons.length) {
           const first = buttons[0],
