@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#08090c" />
+    <title>圣剑联盟 · 实机交互复刻 Demo</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="viewport">
+      <main id="game" aria-label="圣剑联盟实机交互复刻演示">
+        <canvas
+          id="field"
+          width="1024"
+          height="576"
+          tabindex="0"
+          aria-label="战场。拖动左侧英雄调整阵型，或者点击英雄后点击空箭头阵位。"
+        ></canvas>
+        <button id="back" class="back-button" aria-label="返回关卡地图">
+          <span>➜</span><b>返回</b>
+        </button>
+        <div id="stageTitle">
+          <b>关卡:<span id="stageName">德玛西亚</span></b
+          ><span id="stageNumber">1-4 <i>★</i></span>
+        </div>
+        <div class="formation-count" id="formationCount">
+          可上阵英雄：<b>0</b>
+        </div>
+        <div class="upper-tools">
+          <div class="currency" id="currency">
+            <i>◉</i><span id="coinCount">0</span>
+          </div>
+          <button
+            id="audio"
+            class="small-control"
+            aria-label="开启声音"
+            title="声音"
+          >
+            ♪</button
+          ><button id="help" class="small-control" aria-label="操作说明">
+            ?</button
+          ><button id="fullscreen" class="small-control" aria-label="切换全屏">
+            ⛶
+          </button>
+        </div>
+        <div id="formationBar">
+          <button id="assist" class="ornate blue">好友助阵</button
+          ><button id="arrange" class="ornate blue">调整阵型</button
+          ><button id="fight" class="ornate gold">
+            开始战斗<span class="sparks"></span></button
+          ><button id="heroes" class="ornate blue">更换英雄</button>
+        </div>
+        <div id="combatBar" hidden>
+          <button id="auto" class="auto-button">自动<br />战斗</button>
+          <div class="vitals" aria-label="队伍生命与能量">
+            <div class="vital-liquid">
+              <div class="health-liquid"><i id="hpLiquid"></i></div>
+              <div class="mana-liquid"><i id="mpLiquid"></i></div>
+            </div>
+            <div class="orb-reflection"></div>
+            <div class="vital-values">
+              <b id="hpValue">1702</b><b id="mpValue">60</b>
+            </div>
+          </div>
+          <div id="skillBar"></div>
+          <div class="combat-end">
+            <button id="speed" class="speed-button" aria-label="切换战斗速度">
+              <i>▶</i><b>×1</b></button
+            ><button id="skip" class="skip-button"><i>◈</i><b>跳过</b></button>
+          </div>
+        </div>
+        <div id="fightBanner" hidden>FIGHT!</div>
+        <div id="roundLabel" hidden>第 1 回合</div>
+        <button id="pause" class="small-control" hidden aria-label="暂停战斗">
+          Ⅱ
+        </button>
+        <div id="targetHint" hidden>
+          请选择攻击目标 <button id="cancelTarget">取消 ×</button>
+        </div>
+        <div id="toast" role="status" aria-live="polite"></div>
+        <div id="overlay" hidden><div id="overlayContent"></div></div>
+        <div id="loading" class="boot">
+          <span>圣剑联盟</span><b>实机交互复刻 Demo</b>
+          <div><i></i></div>
+          <small>正在加载场景与英雄…</small>
+          <button id="retryLoad" class="ornate blue" hidden>重新加载</button>
+        </div>
+      </main>
+    </div>
+    <div class="portrait-hint">
+      ↻ 横屏游玩，体验更接近实机录像 <button id="mobileFull">全屏</button>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
