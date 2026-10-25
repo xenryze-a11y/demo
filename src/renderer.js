@@ -1,5 +1,5 @@
-import { ART, drawSprite } from "./art.js?v=81cc37657afc";
-import { HEROES, ENEMIES, STAGES, getHero } from "./data.js?v=81cc37657afc";
+import { ART, drawSprite } from "./art.js?v=4f68d6b04255";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=4f68d6b04255";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
@@ -230,9 +230,10 @@ export class Battlefield {
       const motion = dead
         ? "dead"
         : acting
-          ? ["attack", "bolt"].includes(anim.action.kind)
-            ? "attack"
-            : "skill1"
+          ? anim.action.animation ||
+            (["attack", "bolt"].includes(anim.action.kind)
+              ? "attack"
+              : "skill1")
           : struck
             ? "hurt"
             : "stand";
@@ -258,7 +259,13 @@ export class Battlefield {
       c.restore();
       if (!prep && !dead) {
         const barY = y + 10;
-        this.text(u.name, x, barY - 1, u.color, 15);
+        this.text(
+          (u.category === "protagonist" ? "★ " : "") + u.name,
+          x,
+          barY - 1,
+          u.color,
+          15,
+        );
         c.fillStyle = "#222522";
         c.fillRect(x - 39, barY + 5, 78, 10);
         c.strokeStyle = "#c8bdaa";
@@ -295,6 +302,18 @@ export class Battlefield {
         c.stroke();
         this.text("▼", x, y - height - 8, "#fff18e", 20);
       }
+      if (u.category === "protagonist" && prep)
+        this.text("主角 · " + u.name, x, y + 18, "#ffdf68", 15);
+      const status = [
+        u.shield > 0 ? "护盾" : "",
+        u.reflect ? "反伤" : "",
+        u.stun ? "冰封" : "",
+        u.poison ? "剧毒" : "",
+        u.silence ? "沉默" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      if (!prep && status && !dead) this.text(status, x, y + 38, "#b4eaff", 12);
       this.hits.push({
         id: u.id,
         unit: u,
@@ -368,19 +387,57 @@ export class Battlefield {
       actor = b.units.find((u) => u.id === action.actor),
       from = position(actor.side, actor.slot);
     if (p < 0.12 || p > 0.95) return;
-    if (action.kind === "nova" && p < 0.4) {
+    if (["snipe","divineRush","inferno"].includes(action.kind) && p < 0.4) {
       c.save();
       c.globalAlpha = Math.sin((p / 0.4) * Math.PI) * 0.93;
       c.fillStyle = "#050b16aa";
       c.fillRect(0, 120, W, 270);
-      c.drawImage(ART.victory, 40, -70, 285, 428);
-      this.text("弹 幕 风 暴", 540, 250, "#ffdf60", 40);
+      c.drawImage(ART["card"+actor.sprite], 80, 123, 178, 265);
+      this.text(action.name, 540, 250, "#ffdf60", 40);
       c.restore();
     }
+    if (!["attack", "bolt", "heal"].includes(action.kind))
+      this.text(action.name, 512, 146, "#ffe38d", 25);
     for (const hit of action.targets) {
       const u = b.units.find((u) => u.id === hit.id),
         to = position(u.side, u.slot);
       const t = Math.max(0, Math.min(1, (p - 0.18) / 0.42));
+      const spell = SPELLS.find((s) => s.id === action.kind);
+      if (spell && !hit.heal && !hit.shield) {
+        c.save();
+        c.globalCompositeOperation = "lighter";
+        const pulse = action.multi ? (p * 3) % 1 : t;
+        const xx = from.x + (to.x - from.x) * pulse,
+          yy = from.y - 65 + (to.y - from.y) * pulse;
+        c.strokeStyle =
+          spell.id === "frostShot"
+            ? "#9fefff"
+            : spell.id === "toxicShot"
+              ? "#aaff62"
+              : spell.color;
+        c.shadowColor = c.strokeStyle;
+        c.shadowBlur = 15;
+        c.lineWidth = 5;
+        c.beginPath();
+        c.moveTo(xx - 35, yy + 8);
+        c.lineTo(xx, yy);
+        c.stroke();
+        c.fillStyle = "#fffbd1";
+        c.beginPath();
+        c.arc(xx, yy, 6, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+      if (hit.shield || hit.reflect || hit.heal) {
+        c.save();
+        c.strokeStyle = hit.shield ? "#ffe38d" : "#8de6ff";
+        c.lineWidth = 4;
+        c.globalAlpha = Math.sin(p * Math.PI);
+        c.beginPath();
+        c.ellipse(to.x, to.y - 65, 48, 78, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+      }
       if (action.kind === "bolt") {
         const x = from.x + (to.x - from.x) * t,
           y = from.y - 55 + (to.y - from.y) * t;

@@ -1,7 +1,6 @@
-import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=81cc37657afc";
+import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=4f68d6b04255";
 const urls = {
   map: new URL("../assets/map.png", import.meta.url).href,
-  background: new URL("../assets/battlefield.png", import.meta.url).href,
   sprites: new URL("../assets/heroes.png", import.meta.url).href,
   victory: new URL("../assets/victory.png", import.meta.url).href,
   chests: new URL("../assets/chests.png", import.meta.url).href,
@@ -37,7 +36,36 @@ const urls = {
   skillSun: new URL("../assets/native/skillSun.jpg", import.meta.url).href,
   buttonBlue: new URL("../assets/native/buttonBlue.png", import.meta.url).href,
   buttonGold: new URL("../assets/native/buttonGold.png", import.meta.url).href,
+  rig2_1: new URL("../assets/native/rig2_1.png", import.meta.url).href,
+  rig2_2: new URL("../assets/native/rig2_2.png", import.meta.url).href,
+  rig8_0: new URL("../assets/native/rig8_0.png", import.meta.url).href,
+  rig8_1: new URL("../assets/native/rig8_1.png", import.meta.url).href,
+  card8: new URL("../assets/native/card8.jpg", import.meta.url).href,
+  head8: new URL("../assets/native/head8.jpg", import.meta.url).href,
+  rig9_0: new URL("../assets/native/rig9_0.png", import.meta.url).href,
+  rig9_1: new URL("../assets/native/rig9_1.png", import.meta.url).href,
+  card9: new URL("../assets/native/card9.jpg", import.meta.url).href,
+  head9: new URL("../assets/native/head9.jpg", import.meta.url).href,
+  skill12001: new URL("../assets/native/skill12001.jpg", import.meta.url).href,
+  skill12011: new URL("../assets/native/skill12011.jpg", import.meta.url).href,
+  skill12041: new URL("../assets/native/skill12041.jpg", import.meta.url).href,
+  skill12051: new URL("../assets/native/skill12051.jpg", import.meta.url).href,
+  skill12081: new URL("../assets/native/skill12081.jpg", import.meta.url).href,
+  skill12091: new URL("../assets/native/skill12091.jpg", import.meta.url).href,
+  skill11001: new URL("../assets/native/skill11001.jpg", import.meta.url).href,
+  skill11011: new URL("../assets/native/skill11011.jpg", import.meta.url).href,
+  skill11041: new URL("../assets/native/skill11041.jpg", import.meta.url).href,
+  skill11021: new URL("../assets/native/skill11021.jpg", import.meta.url).href,
+  skill11081: new URL("../assets/native/skill11081.jpg", import.meta.url).href,
+  skill11091: new URL("../assets/native/skill11091.jpg", import.meta.url).href,
+  skill13001: new URL("../assets/native/skill13001.jpg", import.meta.url).href,
+  skill13011: new URL("../assets/native/skill13011.jpg", import.meta.url).href,
+  skill13041: new URL("../assets/native/skill13041.jpg", import.meta.url).href,
+  skill13021: new URL("../assets/native/skill13021.jpg", import.meta.url).href,
+  skill13081: new URL("../assets/native/skill13081.jpg", import.meta.url).href,
+  skill13091: new URL("../assets/native/skill13091.jpg", import.meta.url).href,
 };
+
 export const ART = {};
 function load(url) {
   return new Promise((resolve, reject) => {
@@ -158,6 +186,8 @@ export function chestImage(open) {
   return cv.toDataURL("image/png");
 }
 export function iconSvg(kind) {
+  if (ART["skill" + kind])
+    return `<img src="${ART["skill" + kind].src}" alt="" aria-hidden="true">`;
   const nativeIcon =
     ART[{ sword: "skillSword", fire: "skillFire", sun: "skillSun" }[kind]];
   if (nativeIcon)

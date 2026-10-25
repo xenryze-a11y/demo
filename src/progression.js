@@ -1,3 +1,4 @@
+import { isProtagonist } from "./data.js?v=4f68d6b04255";
 // Hero training is independent of account experience and has no DOM dependencies.
 export const TRAINING_CARD_XP = 169;
 export const HERO_LEVEL_CAP = 30;
@@ -36,6 +37,8 @@ export function maxFeedCards(progress, available) {
   return Math.max(0, Math.min(available, Math.ceil(needed / TRAINING_CARD_XP)));
 }
 export function feedHero(save, heroId, count) {
+  if (isProtagonist(heroId))
+    return { ok: false, reason: "主角等级随玩家成长，不吞噬英雄经验卡" };
   const progress = save.heroProgress?.[heroId];
   if (!progress) return { ok: false, reason: "请选择英雄" };
   if (progress.level >= HERO_LEVEL_CAP)

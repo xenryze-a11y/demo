@@ -1,11 +1,20 @@
-import { HEROES, STAGES, SPELLS, DEFAULT_FORMATION, getHero } from "./data.js?v=81cc37657afc";
+import {
+  HEROES,
+  STAGES,
+  SPELLS,
+  DEFAULT_FORMATION,
+  getHero,
+  isProtagonist,
+  HERO_SKILLS,
+  spellsFor,
+} from "./data.js?v=4f68d6b04255";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=81cc37657afc";
+} from "./state.js?v=4f68d6b04255";
 import {
   createBattle,
   living,
@@ -14,12 +23,14 @@ import {
   beginNextRound,
   basicAction,
   spellAction,
+  heroSkillAction,
   applyAction,
-} from "./battle.js?v=81cc37657afc";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=81cc37657afc";
-import { Battlefield } from "./renderer.js?v=81cc37657afc";
-import { Sound } from "./audio.js?v=81cc37657afc";
-import { createTraining } from "./training.js?v=81cc37657afc";
+} from "./battle.js?v=4f68d6b04255";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=4f68d6b04255";
+import { Battlefield } from "./renderer.js?v=4f68d6b04255";
+import { Sound } from "./audio.js?v=4f68d6b04255";
+import { createMainPanel } from "./main-character.js?v=4f68d6b04255";
+import { createTraining } from "./training.js?v=4f68d6b04255";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -127,6 +138,8 @@ export async function mountGame(root = document) {
       battle = mode === "battle";
     $("#formationBar").hidden = !formation;
     $("#training").hidden = !formation;
+    $("#mainCharacter").hidden = !formation;
+    $("#heroSkillBar").hidden = !battle;
     $("#bossChallenge").hidden = !formation;
     $("#formationCount").hidden = !formation;
     $("#combatBar").hidden = formation || mode === "loading";
@@ -256,12 +269,27 @@ export async function mountGame(root = document) {
       "heroes",
       frame(
         "更换英雄",
-        `<p class="window-description">点击英雄，再选择阵位。已有英雄会被替换；最多上阵 5 人。</p><div class="hero-list">${HEROES.map((h) => `<button class="hero-card ${state.selected === h.id ? "selected" : ""}" data-hero="${h.id}" aria-pressed="${state.selected === h.id}"><img src="${portraits.get(h.id)}" alt="${h.name}"><strong style="color:${h.color}">${h.name}</strong><small>${h.role} · Lv.${save.heroProgress[h.id].level}</small><span class="deployed">${state.formation.includes(h.id) ? "已上阵" : "可上阵"}</span></button>`).join("")}</div><div class="hero-description"><strong style="color:${chosen.color}">${chosen.name} · ${chosen.skill}</strong><br>${chosen.description}</div><div class="slot-grid">${state.formation.map((id, i) => `<button data-slot="${i}" class="${id === state.selected ? "selected" : ""}" aria-label="第${i + 1}阵位">${id ? getHero(id).name : "空位"}</button>`).join("")}</div><div class="window-footer" style="text-align:right"><button class="ornate blue" id="heroTraining">英雄强化</button>　<button class="ornate blue" id="bench" ${state.formation.includes(state.selected) ? "" : "disabled"}>撤下英雄</button>　<button class="ornate gold" data-close>完成</button></div>`,
+        `<p class="window-description">点击英雄，再选择阵位。已有英雄会被替换；最多上阵 5 人。</p><div class="hero-list">${HEROES.filter(
+          (h) => !isProtagonist(h.id) || state.formation.includes(h.id),
+        )
+          .map(
+            (h) =>
+              `<button class="hero-card ${state.selected === h.id ? "selected" : ""}" data-hero="${h.id}" aria-pressed="${state.selected === h.id}"><img src="${portraits.get(h.id)}" alt="${h.name}"><strong style="color:${h.color}">${h.name}</strong><small>${h.role} · Lv.${isProtagonist(h.id) ? state.level : save.heroProgress[h.id].level}</small><span class="deployed">${isProtagonist(h.id) ? "主角 · 必须出战" : state.formation.includes(h.id) ? "已上阵" : "可上阵"}</span></button>`,
+          )
+          .join(
+            "",
+          )}</div><div class="hero-description"><strong style="color:${chosen.color}">${chosen.name} · ${chosen.skill}</strong><br>${chosen.description}${HERO_SKILLS[chosen.id] ? "<br>英雄技：" + HERO_SKILLS[chosen.id].name + " · " + HERO_SKILLS[chosen.id].description : ""}</div><div class="slot-grid">${state.formation.map((id, i) => `<button data-slot="${i}" class="${id === state.selected ? "selected" : ""}" aria-label="第${i + 1}阵位">${id ? getHero(id).name : "空位"}</button>`).join("")}</div><div class="window-footer" style="text-align:right"><button class="ornate blue" id="heroTraining">英雄强化</button>　<button class="ornate blue" id="bench" ${!isProtagonist(state.selected) && state.formation.includes(state.selected) ? "" : "disabled"}>撤下英雄</button>　<button class="ornate gold" data-close>完成</button></div>`,
         "hero-window",
       ),
     );
     $("#bench").onclick = () => bench(state.selected);
-    $("#heroTraining").onclick = () => training.open(state.selected);
+    $("#heroTraining").textContent = isProtagonist(state.selected)
+      ? "主角技能"
+      : "英雄强化";
+    $("#heroTraining").onclick = () =>
+      isProtagonist(state.selected)
+        ? mainPanel.open()
+        : training.open(state.selected);
   }
   function showArrange() {
     const patterns = [
@@ -306,7 +334,10 @@ export async function mountGame(root = document) {
     root.querySelectorAll("[data-pattern]").forEach(
       (el) =>
         (el.onclick = () => {
-          state.formation = patterns[Number(el.dataset.pattern)].ids;
+          const main = state.formation.find(isProtagonist);
+          state.formation = patterns[Number(el.dataset.pattern)].ids.map(
+            (id) => (id === "ranger" ? main : id),
+          );
           updateFormation();
           closeModal();
           toast("阵型已调整，拖动英雄可继续微调");
@@ -327,7 +358,9 @@ export async function mountGame(root = document) {
           const id = el.dataset.assist;
           deploy(
             id,
-            state.formation.includes(id) ? state.formation.indexOf(id) : 5,
+            state.formation.includes(id)
+              ? state.formation.indexOf(id)
+              : state.formation.findIndex((x) => x && !isProtagonist(x)),
           );
           closeModal();
           toast(`${getHero(id).name}已加入助阵`);
@@ -339,7 +372,7 @@ export async function mountGame(root = document) {
       "help",
       frame(
         "操作说明",
-        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>英雄按速度轮流行动，点底部技能进行指挥。<br><b>技能：</b>审判斩 / 烈阳祝福恢复 20 能量，弹幕风暴消耗 50。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1 / 2 / 3 技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>横屏更接近参考录像。美术按录像重绘，战斗数值为可玩 Demo 实现。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
+        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>英雄按速度轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部六格为当前主角技能，点击后按提示选敌人；左侧头像为英雄主动技，也会每隔一回合自动触发。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–6 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
         "help-window",
       ),
     );
@@ -478,6 +511,16 @@ export async function mountGame(root = document) {
     onFormation: showHeroes,
     play: (kind) => sound.play(kind),
   });
+  const mainPanel = createMainPanel({
+    root,
+    save,
+    state,
+    art: ART,
+    showModal,
+    frame,
+    onChange: updateFormation,
+  });
+  $("#mainCharacter").onclick = () => mainPanel.open();
   $("#training").onclick = () => training.open();
   $("#bossChallenge").onclick = () => {
     showModal(
@@ -520,18 +563,27 @@ export async function mountGame(root = document) {
     $("#roundLabel").textContent = `第 ${b.round} 回合`;
     $("#auto").classList.toggle("active", state.auto);
     $("#speed b").textContent = "×" + state.speed;
-    $("#skillBar").innerHTML =
-      SPELLS.map((s, i) => {
+    $("#skillBar").innerHTML = spellsFor(b)
+      .map((s, i) => {
         const cd = b.cooldowns[s.id] || 0,
-          disabled = state.mode !== "battle" || b.energy < s.cost || cd > 0,
+          disabled =
+            state.mode !== "battle" ||
+            b.energy < s.cost ||
+            cd > 0 ||
+            !living(b, "ally").some(
+              (u) => u.category === "protagonist" && !u.silence,
+            ),
           queued = state.pending?.id === s.id || state.targeting === s.id;
-        return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
-      }).join("") +
-      Array.from(
-        { length: 3 },
-        () =>
-          '<button class="skill empty" disabled aria-label="未解锁技能"></button>',
-      ).join("");
+        return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="skill-name">${s.name}</span><span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
+      })
+      .join("");
+    $("#heroSkillBar").innerHTML = allies
+      .filter((u) => HERO_SKILLS[u.id])
+      .map(
+        (u) =>
+          `<button data-hero-skill="${u.id}" ${u.hp <= 0 || u.silence || b.heroCooldowns[u.id] > 0 ? "disabled" : ""} title="${HERO_SKILLS[u.id].name}：${HERO_SKILLS[u.id].description}" aria-label="${HERO_SKILLS[u.id].name}"><img src="${portraits.get(u.id)}" alt=""><span>${HERO_SKILLS[u.id].name}</span>${b.heroCooldowns[u.id] ? `<b>${b.heroCooldowns[u.id]}</b>` : ""}</button>`,
+      )
+      .join("");
   }
   function startBattle() {
     closeModal();
@@ -572,6 +624,7 @@ export async function mountGame(root = document) {
     if (state.mode !== "battle") return;
     const b = state.battle,
       s = SPELLS.find((s) => s.id === id);
+    if (!s) return;
     if (state.pending) return toast("已有技能等待释放");
     if (b.cooldowns[id]) return toast("技能冷却中");
     if (b.energy < s.cost) return toast("能量不足，可先释放产能技能");
@@ -589,13 +642,9 @@ export async function mountGame(root = document) {
     sound.play();
   }
   function command(id, target) {
-    const action = spellAction(state.battle, id, target);
-    if (action.error) return action;
-    const preferred = { comet: "blade", nova: "pirate", spring: "sun" }[id];
-    action.actor =
-      living(state.battle, "ally").find((u) => u.id === preferred)?.id ||
-      action.actor;
-    return action;
+    return id.startsWith("hero:")
+      ? heroSkillAction(state.battle, id.slice(5))
+      : spellAction(state.battle, id, target);
   }
   function launch(action) {
     state.anim = {
@@ -603,21 +652,26 @@ export async function mountGame(root = document) {
       elapsed: 0,
       duration: ["attack", "bolt", "heal"].includes(action.kind) ? 720 : 1450,
       applied: false,
+      appliedHits: 0,
     };
     updateBattle();
   }
   function chooseAuto() {
-    const b = state.battle;
-    const hurt = living(b, "ally").some((u) => u.hp / u.maxHp < 0.7);
-    return hurt && !b.cooldowns.spring
-      ? "spring"
-      : b.energy >= 50 && !b.cooldowns.nova
-        ? "nova"
-        : !b.cooldowns.comet
-          ? "comet"
-          : !b.cooldowns.spring && b.energy < 85
-            ? "spring"
-            : null;
+    const b = state.battle,
+      main = living(b, "ally").find((u) => u.category === "protagonist");
+    if (!main || main.silence) return null;
+    const skills = spellsFor(b).filter(
+      (s) => !b.cooldowns[s.id] && b.energy >= s.cost,
+    );
+    const heal = skills.find(
+      (s) => s.healing && living(b, "ally").some((u) => u.hp / u.maxHp < 0.6),
+    );
+    return (
+      heal?.id ||
+      skills.find((s) => s.cost === 50)?.id ||
+      skills.find((s) => s.gain)?.id ||
+      null
+    );
   }
   function tickBattle(dt) {
     const b = state.battle;
@@ -625,20 +679,40 @@ export async function mountGame(root = document) {
     if (state.anim) {
       const a = state.anim;
       a.elapsed += dt;
-      if (!a.applied && a.elapsed >= a.duration * 0.52) {
-        a.applied = true;
-        applyAction(b, a.action);
-        for (const h of a.action.targets) {
+      const total = a.action.targets.length;
+      const due = a.action.multi
+        ? Math.min(
+            total,
+            Math.max(
+              0,
+              Math.floor(((a.elapsed / a.duration - 0.28) / 0.55) * total) + 1,
+            ),
+          )
+        : a.elapsed >= a.duration * 0.52
+          ? total
+          : 0;
+      if (due > a.appliedHits) {
+        applyAction(b, a.action, a.appliedHits, due, due === total);
+        for (const h of a.action.targets.slice(a.appliedHits, due)) {
           view.float(
-            `${h.heal ? "+" : "−"}${h.amount}`,
+            h.shield
+              ? "护盾"
+              : h.reflect
+                ? "反伤"
+                : `${h.heal ? "+" : "−"}${h.amount}`,
             h.id,
-            h.heal ? "#88ff49" : h.critical ? "#ff6a1f" : "#ef3930",
+            h.heal || h.shield || h.reflect ? "#88ff49" : "#ff743b",
           );
-          if (h.critical) view.float("暴击", h.id, "#ff9f24");
+          if (h.status)
+            view.float(
+              { stun: "冰封", poison: "剧毒", silence: "沉默" }[h.status],
+              h.id,
+              "#9edfff",
+            );
         }
-        sound.play(
-          ["attack", "bolt"].includes(a.action.kind) ? "hit" : "spell",
-        );
+        a.appliedHits = due;
+        a.applied = due === total;
+        sound.play(a.action.multi ? "hit" : "spell");
         updateBattle();
       }
       if (a.elapsed >= a.duration) {
@@ -705,7 +779,8 @@ export async function mountGame(root = document) {
     $("#confirmSkip").onclick = () => {
       closeModal();
       const b = state.battle;
-      if (state.anim && !state.anim.applied) applyAction(b, state.anim.action);
+      if (state.anim && !state.anim.applied)
+        applyAction(b, state.anim.action, state.anim.appliedHits || 0);
       state.anim = null;
       state.pending = null;
       cancelTarget();
@@ -767,7 +842,8 @@ export async function mountGame(root = document) {
       save.trainingCards = Math.min(9999, save.trainingCards + 1);
       save.gold += result.gold;
       save.xp += result.xp;
-      if (!s.boss) save.unlocked = Math.min(2, Math.max(save.unlocked, state.stage + 1));
+      if (!s.boss)
+        save.unlocked = Math.min(2, Math.max(save.unlocked, state.stage + 1));
       save.stars[state.stage] = Math.max(
         save.stars[state.stage] || 0,
         result.stars,
@@ -859,6 +935,11 @@ export async function mountGame(root = document) {
     state.speed = state.speed === 1 ? 2 : 1;
     updateBattle();
   };
+  $("#heroSkillBar").onclick = (e) => {
+    const button = e.target.closest("[data-hero-skill]");
+    if (!button || button.disabled || state.pending) return;
+    queueSpell("hero:" + button.dataset.heroSkill);
+  };
   $("#skillBar").onclick = (e) => {
     const button = e.target.closest("[data-spell]");
     if (button && !button.disabled) selectSpell(button.dataset.spell);
@@ -906,7 +987,8 @@ export async function mountGame(root = document) {
         e.preventDefault();
         togglePause();
       }
-      if (/^[123]$/.test(e.key)) selectSpell(SPELLS[Number(e.key) - 1].id);
+      if (/^[1-6]$/.test(e.key))
+        selectSpell(spellsFor(state.battle)[Number(e.key) - 1].id);
     } else if (
       state.mode === "formation" &&
       document.activeElement === field &&

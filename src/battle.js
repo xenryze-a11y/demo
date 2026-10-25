@@ -1,5 +1,5 @@
-import { getHero, ENEMIES, SPELLS, STAGES } from "./data.js?v=81cc37657afc";
-import { heroStats } from "./progression.js?v=81cc37657afc";
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=4f68d6b04255";
+import { heroStats } from "./progression.js?v=4f68d6b04255";
 export function createBattle(
   formation,
   stageId = 0,
@@ -11,7 +11,10 @@ export function createBattle(
   const allies = formation.flatMap((id, slot) => {
     if (!id) return [];
     const h = getHero(id),
-      heroLevel = heroProgress[id]?.level ?? level,
+      heroLevel =
+        h.category === "protagonist"
+          ? level
+          : (heroProgress[id]?.level ?? level),
       stats = heroStats(h, heroLevel);
     return [
       {
@@ -46,6 +49,7 @@ export function createBattle(
     outcome: null,
     actions: 0,
     spellUsed: false,
+    heroCooldowns: {},
   };
 }
 export const living = (b, side) =>
@@ -66,11 +70,29 @@ export function nextActor(b) {
   while (b.queue.length) {
     const id = b.queue.shift();
     const u = b.units.find((x) => x.id === id);
-    if (u?.hp > 0) return u;
+    if (u?.hp > 0) {
+      if (u.stun > 0) {
+        u.stun--;
+        continue;
+      }
+      return u;
+    }
   }
   return null;
 }
 export function beginNextRound(b) {
+  for (const unit of b.units) {
+    if (unit.poison > 0 && unit.hp > 0) {
+      unit.hp = Math.max(0, unit.hp - Math.round(unit.maxHp * 0.06));
+      unit.poison--;
+    }
+    for (const key of ["silence", "shieldTurns", "reflectTurns"])
+      if (unit[key] > 0) unit[key]--;
+    if (!unit.shieldTurns) unit.shield = 0;
+    if (!unit.reflectTurns) unit.reflect = 0;
+  }
+  for (const id of Object.keys(b.heroCooldowns))
+    b.heroCooldowns[id] = Math.max(0, b.heroCooldowns[id] - 1);
   b.round++;
   b.spellUsed = false;
   for (const key of Object.keys(b.cooldowns))
@@ -101,7 +123,7 @@ export function chooseTarget(b, actor) {
   })[0];
 }
 export function basicAction(b, actor, random = Math.random) {
-  if (actor.kind === "boss" && b.round % 3 === 0) {
+  if (actor.kind === "boss" && b.round % 3 === 0 && !actor.silence) {
     return {
       kind: "bossSlam",
       actor: actor.id,
@@ -117,6 +139,14 @@ export function basicAction(b, actor, random = Math.random) {
       })),
     };
   }
+  if (
+    actor.side === "ally" &&
+    HERO_SKILLS[actor.id] &&
+    b.round % 2 === 0 &&
+    !actor.silence &&
+    !b.heroCooldowns[actor.id]
+  )
+    return heroSkillAction(b, actor.id);
   const target = chooseTarget(b, actor);
   if (!target) return null;
   const heal = target.side === actor.side,
@@ -147,50 +177,158 @@ export function basicAction(b, actor, random = Math.random) {
   };
 }
 export function spellAction(b, id, targetId) {
-  const s = SPELLS.find((x) => x.id === id);
+  const s = SPELLS.find((skill) => skill.id === id);
   if (!s) return { error: "未知技能" };
+  const actor = living(b, "ally").find(
+    (unit) => unit.category === "protagonist" && unit.classId === s.classId,
+  );
+  if (!actor) return { error: "对应主角未出战或已倒下" };
+  if (actor.silence || actor.stun) return { error: "主角被控制，暂时无法释放技能" };
   if (b.outcome) return { error: "战斗已经结束" };
-  if (b.energy < s.cost)
-    return { error: "星能不足，普通攻击与新回合会恢复星能" };
+  if (b.energy < s.cost) return { error: "怒气不足" };
   if (b.cooldowns[id] > 0)
     return { error: `技能还需 ${b.cooldowns[id]} 回合冷却` };
   let targets;
   if (s.target === "enemy") {
-    const target = living(b, "enemy").find((x) => x.id === targetId);
+    const target = living(b, "enemy").find((unit) => unit.id === targetId);
     if (!target) return { error: "请选择一名存活的敌人" };
-    targets = [target];
-  } else targets = living(b, s.target === "allies" ? "ally" : "enemy");
+    targets =
+      s.pattern === "line"
+        ? living(b, "enemy").filter((u) => u.slot % 3 === target.slot % 3)
+        : s.pattern === "row"
+          ? living(b, "enemy").filter(
+              (u) => Math.floor(u.slot / 3) === Math.floor(target.slot / 3),
+            )
+          : [target];
+  } else
+    targets =
+      s.target === "self"
+        ? [actor]
+        : living(b, s.target === "allies" ? "ally" : "enemy");
   b.energy = Math.min(100, b.energy - s.cost + (s.gain || 0));
   b.cooldowns[id] = s.cooldown + 1;
-  b.spellUsed = true;
-  const power = Math.max(...living(b, "ally").map((u) => u.attack));
+  const hits = s.hits || 1;
   return {
-    kind: id,
-    actor: living(b, "ally")[0]?.id,
+    kind: s.id,
+    actor: actor.id,
     name: s.name,
-    targets: targets.map((u) => ({
-      id: u.id,
-      amount:
-        s.target === "allies"
-          ? Math.round(u.maxHp * 0.3)
-          : Math.round(power * (id === "comet" ? 2.2 : 1.8)),
-      heal: s.target === "allies",
-      critical: id === "comet",
-    })),
+    animation: s.animation,
+    leech: s.leech,
+    targets: Array.from({ length: hits }, () =>
+      targets.map((unit) => ({
+        id: unit.id,
+        amount: s.shield
+          ? 0
+          : s.healing
+            ? Math.round(unit.maxHp * s.healing)
+            : Math.round(actor.attack * (s.ratio || 1) + (s.flat || 0)),
+        heal: !!s.healing,
+        shield: s.shield ? Math.round(actor.maxHp * s.shield) : 0,
+        status: s.status,
+        turns: s.turns,
+        purge: s.purge,
+        critical: false,
+      })),
+    ).flat(),
+    multi: hits > 1,
   };
 }
-export function applyAction(b, action) {
-  for (const hit of action.targets) {
+export function heroSkillAction(b, id) {
+  const actor = living(b, "ally").find((u) => u.id === id),
+    skill = HERO_SKILLS[id];
+  if (!actor || !skill) return { error: "英雄未出战或已倒下" };
+  if (actor.silence || actor.stun) return { error: "英雄被控制，暂时无法释放技能" };
+  if (b.heroCooldowns[id] > 0) return { error: "英雄技冷却中" };
+  const target = chooseTarget(b, actor),
+    enemies = living(b, "enemy");
+  let targets = [];
+  if (id === "sun")
+    targets = [
+      { id, amount: 0, shield: Math.round(actor.maxHp * 0.35), turns: 2 },
+    ];
+  if (id === "blade") targets = [{ id, amount: 0, reflect: 0.7, turns: 2 }];
+  if (id === "pirate")
+    targets = enemies
+      .filter((u) => u.slot % 3 === target.slot % 3)
+      .slice(0, 2)
+      .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 1.35) }));
+  if (id === "rogue")
+    targets = Array.from({ length: 3 }, () =>
+      enemies
+        .slice(0, 3)
+        .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 0.65) })),
+    ).flat();
+  if (id === "wind")
+    targets = enemies
+      .filter((u) => u.slot % 3 === target.slot % 3)
+      .map((u) => ({
+        id: u.id,
+        amount: Math.round(actor.attack * 0.5),
+        status: "silence",
+        turns: 2,
+      }));
+  b.heroCooldowns[id] = 2;
+  return {
+    kind: skill.id,
+    name: skill.name,
+    actor: id,
+    animation: skill.animation,
+    targets,
+    multi: id === "rogue",
+    heroSkill: true,
+  };
+}
+export function applyAction(
+  b,
+  action,
+  start = 0,
+  end = action.targets.length,
+  finish = true,
+) {
+  const actor = b.units.find((u) => u.id === action.actor);
+  for (const hit of action.targets.slice(start, end)) {
     const unit = b.units.find((u) => u.id === hit.id);
     if (!unit || unit.hp <= 0) continue;
+    if (hit.shield) {
+      unit.shield = hit.shield;
+      unit.shieldTurns = hit.turns;
+      continue;
+    }
+    if (hit.reflect) {
+      unit.reflect = hit.reflect;
+      unit.reflectTurns = hit.turns;
+      continue;
+    }
+    let damage = Math.max(0, hit.amount || 0);
+    if (!hit.heal) {
+      const blocked = Math.min(unit.shield || 0, damage);
+      unit.shield = (unit.shield || 0) - blocked;
+      damage -= blocked;
+    }
+    const actual = Math.min(unit.hp, damage);
     unit.hp = Math.max(
       0,
-      Math.min(unit.maxHp, unit.hp + (hit.heal ? hit.amount : -hit.amount)),
+      Math.min(unit.maxHp, unit.hp + (hit.heal ? damage : -damage)),
     );
+    if (!hit.heal && unit.reflect && actor?.hp > 0)
+      actor.hp = Math.max(0, actor.hp - Math.round(actual * unit.reflect));
+    if (action.leech && actor?.hp > 0)
+      actor.hp = Math.min(
+        actor.maxHp,
+        actor.hp + Math.round(actual * action.leech),
+      );
+    if (hit.status && unit.hp > 0)
+      unit[hit.status] = Math.max(unit[hit.status] || 0, hit.turns);
+    if (hit.purge) {
+      unit.shield = 0;
+      unit.reflect = 0;
+    }
   }
-  b.actions++;
-  if (["attack", "bolt", "heal"].includes(action.kind))
-    b.energy = Math.min(100, b.energy + 5);
+  if (finish) {
+    b.actions++;
+    if (["attack", "bolt", "heal"].includes(action.kind))
+      b.energy = Math.min(100, b.energy + 5);
+  }
   b.outcome = outcome(b);
   return b.outcome;
 }

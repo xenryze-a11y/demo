@@ -1,4 +1,4 @@
-import { NATIVE_MODELS } from "./native-data.js?v=81cc37657afc";
+import { NATIVE_MODELS } from "./native-data.js?v=4f68d6b04255";
 let nativeImages;
 const nativeBounds = [];
 function nativeMultiply(a, b) {
@@ -50,7 +50,7 @@ export function nativePose(
 ) {
   const model = NATIVE_MODELS[index];
   if (!model) return [];
-  const move = model.moves[animation] || model.moves.stand;
+  const move = model.moves[animation] || (animation.startsWith("skill") ? model.moves.skill1 : null) || model.moves.stand;
   const time = loop
     ? (seconds * 30) % Math.max(1, move.dr - 1)
     : Math.min(move.dr - 1, Math.max(0, seconds * 30));

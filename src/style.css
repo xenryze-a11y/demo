@@ -2281,3 +2281,145 @@ button:active:not(:disabled) {
 .skill:disabled > img {
   filter: brightness(0.38) grayscale(0.65);
 }
+.main-entry {
+  position: absolute;
+  left: 215px;
+  top: 22px;
+  height: 39px !important;
+  min-width: 116px !important;
+  font-size: 16px !important;
+}
+.main-window {
+  width: 880px;
+  height: 474px;
+}
+.main-classes {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0 20px;
+}
+.main-class {
+  width: 145px;
+  height: 96px;
+  padding: 8px 4px 8px 66px;
+  position: relative;
+  border: 2px ridge #777f94;
+  background: linear-gradient(#294d6b, #12283d);
+}
+.main-class img {
+  position: absolute;
+  left: 5px;
+  top: 12px;
+  width: 56px;
+  height: 64px;
+  object-fit: cover;
+}
+.main-class b {
+  font-size: 19px;
+}
+.main-class small {
+  display: block;
+  font-size: 12px;
+  color: #d0cbad;
+  margin-top: 7px;
+}
+.main-class.selected {
+  border-color: #ffda66;
+  box-shadow: 0 0 10px #ffcb4066;
+}
+.main-classes p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #dce0db;
+}
+.main-skill-library {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.main-skill-library article {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 80px;
+  background: #111e2edb;
+  border: 1px solid #5b6574;
+  padding: 7px;
+}
+.main-skill-library img {
+  width: 60px;
+  height: 60px;
+  border: 2px ridge #b2a371;
+}
+.main-skill-library b {
+  color: #ffe293;
+  font-size: 17px;
+}
+.main-skill-library small,
+.main-skill-library em {
+  display: block;
+  font-size: 12px;
+  margin-top: 5px;
+  line-height: 1.4;
+  font-style: normal;
+  color: #c5d7df;
+}
+.main-skill-library em {
+  color: #a0d4f4;
+}
+#heroSkillBar {
+  position: absolute;
+  left: 15px;
+  top: 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 3;
+}
+#heroSkillBar button {
+  position: relative;
+  width: 51px;
+  height: 51px;
+  padding: 1px;
+  border: 2px ridge #c8b77c;
+  background: #162a3b;
+}
+#heroSkillBar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#heroSkillBar span {
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  bottom: -6px;
+  font-size: 10px;
+  background: #0a1722d9;
+  color: #ffe493;
+  white-space: nowrap;
+}
+#heroSkillBar button:disabled img {
+  filter: grayscale(0.7) brightness(0.5);
+}
+#heroSkillBar b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0006;
+  font-size: 23px;
+}
+.skill .skill-name {
+  position: absolute;
+  top: -19px;
+  left: -7px;
+  right: -7px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  color: #fff0bc;
+  text-shadow: 1px 1px 2px #000;
+  background: #091322b0;
+}

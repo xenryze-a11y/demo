@@ -1,5 +1,5 @@
-import { DEFAULT_FORMATION, HEROES, MAX_PARTY } from "./data.js?v=81cc37657afc";
-import { normalizeHeroProgress } from "./progression.js?v=81cc37657afc";
+import { DEFAULT_FORMATION, HEROES, MAX_PARTY, isProtagonist } from "./data.js?v=4f68d6b04255";
+import { normalizeHeroProgress } from "./progression.js?v=4f68d6b04255";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,
@@ -46,6 +46,17 @@ export function normalizeSave(raw) {
     });
     if (!used.size) clean.formation = [...DEFAULT_FORMATION];
   }
+  const mains = clean.formation.filter(isProtagonist);
+  if (!mains.length) {
+    const index = clean.formation.filter(Boolean).length >= MAX_PARTY
+      ? (clean.formation[5] ? 5 : clean.formation.findLastIndex(Boolean))
+      : clean.formation.findIndex(id => !id);
+    clean.formation[index] = "ranger";
+  }
+  else
+    clean.formation = clean.formation.map((id) =>
+      isProtagonist(id) && id !== mains[0] ? null : id,
+    );
   for (let i = 0; i < 4; i++)
     clean.stars[i] = Math.max(
       0,
@@ -77,6 +88,14 @@ export function placeHero(formation, id, index) {
     index > 8
   )
     return { ok: false, reason: "请选择我方阵位" };
+  if (isProtagonist(id) && !formation.includes(id))
+    return { ok: false, reason: "请在主角面板切换职业" };
+  if (
+    isProtagonist(formation[index]) &&
+    !isProtagonist(id) &&
+    !formation.includes(id)
+  )
+    return { ok: false, reason: "主角阵位不能被普通英雄替换" };
   const next = [...formation],
     source = next.indexOf(id);
   if (source === index) return { ok: true, formation: next };
@@ -87,6 +106,8 @@ export function placeHero(formation, id, index) {
   return { ok: true, formation: next };
 }
 export function removeHero(formation, id) {
+  if (isProtagonist(id))
+    return { ok: false, reason: "主角必须出战，可调整阵位" };
   if (formation.filter(Boolean).length <= 1)
     return { ok: false, reason: "至少保留一位伙伴" };
   return { ok: true, formation: formation.map((x) => (x === id ? null : x)) };
