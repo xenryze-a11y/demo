@@ -80,6 +80,7 @@ export async function mountGame(root = document) {
   $("#mobileFull").onclick = fullscreen;
   try {
     await loadArt((completed, total) => {
+      if (!$("#retryLoad").hidden) return;
       $("#loading small").textContent = `正在加载场景与英雄… ${completed}/${total}`;
       $("#loading i").style.width = `${completed / total * 100}%`;
     });
