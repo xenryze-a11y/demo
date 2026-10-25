@@ -1,5 +1,7 @@
-import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=e7b6ee51ab02";
-import { heroStats } from "./progression.js?v=e7b6ee51ab02";
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=47d6efce13e9";
+import { heroStats } from "./progression.js?v=47d6efce13e9";
+import { APK_HERO_CONFIG } from './apk-config.js?v=47d6efce13e9';
+import { attachNativeConfig, selectNativeSkill, resetNativeCooldown } from './native-combat.js?v=47d6efce13e9';
 export function createBattle(
   formation,
   stageId = 0,
@@ -50,6 +52,7 @@ export function createBattle(
     actions: 0,
     spellUsed: false,
     heroCooldowns: {},
+    randomState: Math.floor(Math.random() * 0x100000000) >>> 0,
   };
 }
 export const living = (b, side) =>
@@ -139,10 +142,15 @@ export function basicAction(b, actor, random = Math.random) {
   }
   // Per-hero action cycle: skill, basic, basic, then skill again.
   // A stunned/skipped action never advances this counter; rounds alone do not reset it.
-  if (HERO_SKILLS[actor.heroSkillId || actor.id]) {
-    if (!(b.heroCooldowns[actor.id] > 0) && !actor.silence && !actor.stun)
+  const heroSkill = HERO_SKILLS[actor.heroSkillId || actor.id];
+  if (heroSkill) {
+    const active = { id: heroSkill.nativeId, coldNow: b.heroCooldowns[actor.id] || 0,
+      coldInterval: heroSkill.cooldown, priority: 0, energyChange: 0 };
+    const basic = { id: 0, coldNow: 0, coldInterval: 0, priority: 1, energyChange: 0 };
+    const selected = selectNativeSkill([active, basic]);
+    b.heroCooldowns[actor.id] = active.coldNow;
+    if (selected === active && !actor.silence && !actor.stun)
       return heroSkillAction(b, actor.id);
-    if (b.heroCooldowns[actor.id] > 0) b.heroCooldowns[actor.id]--;
   }
   const target = chooseTarget(b, actor);
   if (!target) return null;
@@ -160,7 +168,7 @@ export function basicAction(b, actor, random = Math.random) {
             (critical ? 1.6 : 1),
         ),
       );
-  return {
+  const action = {
     kind: heal
       ? "heal"
       : ["ranger", "gunner", "mage", "healer", "shroom", "sentinel"].includes(
@@ -172,6 +180,8 @@ export function basicAction(b, actor, random = Math.random) {
     targets: [{ id: target.id, amount, heal, critical }],
     name: heal ? "萤光愈" : actor.skill || "突袭",
   };
+  const hero = getHero(actor.heroSkillId || actor.id);
+  return attachNativeConfig(action, APK_HERO_CONFIG[hero?.nativeId]?.basicSkill, hero?.nativeId);
 }
 export function spellAction(b, id, targetId) {
   const s = SPELLS.find((skill) => skill.id === id);
@@ -206,7 +216,7 @@ export function spellAction(b, id, targetId) {
   b.energy = Math.min(100, b.energy - s.cost + (s.gain || 0));
   b.cooldowns[id] = s.cooldown + 1;
   const hits = s.hits || 1;
-  return {
+  return attachNativeConfig({
     kind: s.id,
     actor: actor.id,
     name: s.name,
@@ -229,9 +239,15 @@ export function spellAction(b, id, targetId) {
       })),
     ).flat(),
     multi: hits > 1,
-  };
+    hitGroups: Array(hits).fill(targets.length),
+  }, s.nativeId, actor.nativeId);
 }
-export function heroSkillAction(b, id) {
+function battleRandom(b) {
+  // Store the PRNG state in the battle: playback and skip consume identical draws.
+  b.randomState = (Math.imul(b.randomState, 1664525) + 1013904223) >>> 0;
+  return b.randomState / 0x100000000;
+}
+export function heroSkillAction(b, id, random = () => battleRandom(b)) {
   const actor = living(b).find((u) => u.id === id),
     skillId = actor?.heroSkillId || id,
     skill = HERO_SKILLS[skillId];
@@ -254,12 +270,18 @@ export function heroSkillAction(b, id) {
       .filter((u) => u.slot % 3 === target.slot % 3)
       .slice(0, 2)
       .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 1.35) }));
-  if (skillId === "rogue")
+  if (skillId === "rogue") {
+    const pool = enemies.slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
     targets = Array.from({ length: 3 }, () =>
-      enemies
+      pool
         .slice(0, 3)
         .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 0.65) })),
     ).flat();
+  }
   if (skillId === "wind")
     targets = enemies
       .filter((u) => u.slot % 3 === target.slot % 3)
@@ -267,10 +289,12 @@ export function heroSkillAction(b, id) {
         id: u.id,
         amount: Math.round(actor.attack * 0.5),
         status: "silence",
-        turns: 2,
+        turns: 1,
       }));
-  b.heroCooldowns[id] = 2;
-  return {
+  const cooldown = { coldInterval: skill.cooldown, coldNow: 0 };
+  resetNativeCooldown(cooldown);
+  b.heroCooldowns[id] = cooldown.coldNow;
+  return attachNativeConfig({
     kind: skill.id,
     name: skill.name,
     actor: id,
@@ -279,7 +303,8 @@ export function heroSkillAction(b, id) {
     multi: skillId === "rogue",
     heroSkill: true,
     movement: skillId === "rogue" ? "advance-spin" : null,
-  };
+    hitGroups: skillId === "rogue" ? Array(3).fill(targets.length / 3) : [targets.length],
+  }, skill.nativeId, getHero(skillId)?.nativeId);
 }
 export function applyAction(
   b,

@@ -1,6 +1,9 @@
+import { APK_HERO_CONFIG } from './apk-config.js?v=47d6efce13e9';
+import { nativeSkillConfig } from './native-combat.js?v=47d6efce13e9';
 export const HEROES = [
   {
     id: "sun",
+    nativeId: 2002,
     name: "太阳女神",
     title: "日蚀守护",
     role: "守护",
@@ -16,6 +19,7 @@ export const HEROES = [
   },
   {
     id: "blade",
+    nativeId: 2004,
     name: "审判之锋",
     title: "无畏剑士",
     role: "战士",
@@ -50,6 +54,7 @@ export const HEROES = [
   },
   {
     id: "rogue",
+    nativeId: 2030,
     name: "卡塔丽娜",
     title: "绯刃之舞",
     role: "刺客",
@@ -65,6 +70,7 @@ export const HEROES = [
   },
   {
     id: "pirate",
+    nativeId: 2015,
     name: "霜火枪姬",
     title: "双枪女王",
     role: "枪手",
@@ -80,6 +86,7 @@ export const HEROES = [
   },
   {
     id: "wind",
+    nativeId: 2018,
     name: "风之女",
     title: "风语祝福",
     role: "辅助",
@@ -475,14 +482,14 @@ export const SPELLS = [
   icon: s.nativeId,
   badge: s.gain ? "+" + s.gain : "−" + s.cost,
   color: s.classId === "mage" ? "#bd8dff" : "#ffcc6c",
-  animation:
+  animation: nativeSkillConfig(s.nativeId)?.animation || (
     s.classId === "mage"
       ? [13011, 13021, 13081].includes(s.nativeId)
         ? "skill2"
         : "skill1"
       : s.nativeId === 12041
         ? "attack2"
-        : "skill" + s.nativeId,
+        : "skill" + s.nativeId),
 }));
 export const spellsFor = (battle) =>
   SPELLS.filter(
@@ -524,6 +531,17 @@ export const HERO_SKILLS = {
     description: "直线攻击并沉默一回合",
   },
 };
+for (const [id, skill] of Object.entries(HERO_SKILLS)) {
+  const hero = HEROES.find((h) => h.id === id);
+  const row = APK_HERO_CONFIG[hero.nativeId];
+  const config = nativeSkillConfig(row.activeSkill, hero.nativeId);
+  skill.nativeId = row.activeSkill;
+  skill.animation = config?.animation || skill.animation;
+  // Runtime cooldown values are absent from the CSV. Keep the user's observed
+  // skill/basic/basic cycle explicitly as a demo fallback, not extracted data.
+  skill.cooldown = 2;
+  skill.cooldownSource = 'user-observed-demo-fallback';
+}
 export const DEFAULT_FORMATION = [
   null,
   "sun",

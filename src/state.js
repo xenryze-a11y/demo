@@ -5,8 +5,8 @@ import {
   isProtagonist,
   MAIN_CLASSES,
   skillLoadout,
-} from "./data.js?v=e7b6ee51ab02";
-import { normalizeHeroProgress } from "./progression.js?v=e7b6ee51ab02";
+} from "./data.js?v=47d6efce13e9";
+import { normalizeHeroProgress } from "./progression.js?v=47d6efce13e9";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,

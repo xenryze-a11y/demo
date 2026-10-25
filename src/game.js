@@ -7,14 +7,14 @@ import {
   isProtagonist,
   HERO_SKILLS,
   equippedSpells,
-} from "./data.js?v=e7b6ee51ab02";
+} from "./data.js?v=47d6efce13e9";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=e7b6ee51ab02";
+} from "./state.js?v=47d6efce13e9";
 import {
   createBattle,
   living,
@@ -25,12 +25,13 @@ import {
   spellAction,
   heroSkillAction,
   applyAction,
-} from "./battle.js?v=e7b6ee51ab02";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=e7b6ee51ab02";
-import { Battlefield } from "./renderer.js?v=e7b6ee51ab02";
-import { Sound } from "./audio.js?v=e7b6ee51ab02";
-import { createMainPanel } from "./main-character.js?v=e7b6ee51ab02";
-import { createTraining } from "./training.js?v=e7b6ee51ab02";
+} from "./battle.js?v=47d6efce13e9";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=47d6efce13e9";
+import { Battlefield, prepareActionTimeline } from "./renderer.js?v=47d6efce13e9";
+import { dueNativeHits } from './native-combat.js?v=47d6efce13e9';
+import { Sound } from "./audio.js?v=47d6efce13e9";
+import { createMainPanel } from "./main-character.js?v=47d6efce13e9";
+import { createTraining } from "./training.js?v=47d6efce13e9";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -692,17 +693,12 @@ export async function mountGame(root = document) {
       : spellAction(state.battle, id, target);
   }
   function launch(action) {
+    const timeline = prepareActionTimeline(state.battle, action);
     state.anim = {
       action,
       elapsed: 0,
-      duration:
-        action.kind === "lotus"
-          ? 2400
-          : ["attack", "bolt", "heal"].includes(action.kind)
-            ? 980
-            : action.multi
-              ? 1700
-              : 1350,
+      duration: timeline.duration,
+      timeline,
       applied: false,
       appliedHits: 0,
     };
@@ -713,6 +709,8 @@ export async function mountGame(root = document) {
           kind: action.kind,
           round: state.battle.round,
           duration: state.anim.duration,
+          nativeId: action.nativeId,
+          hitTimes: timeline.events.map((event) => event.at),
         },
       }),
     );
@@ -742,28 +740,7 @@ export async function mountGame(root = document) {
       const a = state.anim;
       a.elapsed += dt;
       const total = a.action.targets.length;
-      const due =
-        a.action.kind === "lotus"
-          ? Math.max(
-              0,
-              Math.min(
-                3,
-                Math.floor((a.elapsed / a.duration - 0.28) / 0.22) + 1,
-              ),
-            ) *
-            (total / 3)
-          : a.action.multi
-            ? Math.min(
-                total,
-                Math.max(
-                  0,
-                  Math.floor(((a.elapsed / a.duration - 0.28) / 0.55) * total) +
-                    1,
-                ),
-              )
-            : a.elapsed >= a.duration * 0.52
-              ? total
-              : 0;
+      const due = dueNativeHits(a.timeline, a.elapsed);
       if (due > a.appliedHits) {
         applyAction(b, a.action, a.appliedHits, due, due === total);
         for (const h of a.action.targets.slice(a.appliedHits, due)) {
