@@ -1,7 +1,8 @@
-import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=eb8d84b6e81d";
-import { heroStats } from "./progression.js?v=eb8d84b6e81d";
-import { APK_HERO_CONFIG } from './apk-config.js?v=eb8d84b6e81d';
-import { attachNativeConfig, selectNativeSkill, resetNativeCooldown, selectNativeTargets } from './native-combat.js?v=eb8d84b6e81d';
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=669213efe941";
+import { heroStats } from "./progression.js?v=669213efe941";
+import { APK_HERO_CONFIG } from './apk-config.js?v=669213efe941';
+import { freshTurnCursor, advanceNativeTurn, remainingNativeTurns } from './native-turns.js?v=669213efe941';
+import { attachNativeConfig, selectNativeSkill, resetNativeCooldown, selectNativeTargets } from './native-combat.js?v=669213efe941';
 export function createBattle(
   formation,
   stageId = 0,
@@ -47,6 +48,9 @@ export function createBattle(
     round: 1,
     energy: 60,
     queue: [],
+    firstSide: 'ally',
+    turnCursor: null,
+    actedThisRound: [],
     cooldowns: {},
     outcome: null,
     actions: 0,
@@ -63,13 +67,32 @@ export function outcome(b) {
   return null;
 }
 export function refillQueue(b) {
-  b.queue = living(b)
-    .sort((a, c) => c.speed - a.speed)
-    .map((u) => u.id);
+  b.turnCursor = freshTurnCursor();
+  b.actedThisRound = [];
+  b.queue = remainingNativeTurns(b.units, b.turnCursor, [], b.firstSide);
 }
 export function nextActor(b) {
   b.outcome = outcome(b);
   if (b.outcome) return null;
+  if (b.turnCursor) {
+    const acted = new Set(b.actedThisRound);
+    let unit;
+    while ((unit = advanceNativeTurn(b.units, b.turnCursor, acted, b.firstSide))) {
+      b.actedThisRound = [...acted];
+      b.queue = remainingNativeTurns(b.units, b.turnCursor, acted, b.firstSide);
+      unit.lastActedRound = b.round;
+      if (unit.stun > 0) {
+        unit.stun--;
+        // The native controlled-turn branch also decrements positive skill CDs.
+        if (b.heroCooldowns[unit.id] > 0) b.heroCooldowns[unit.id]--;
+        continue;
+      }
+      return unit;
+    }
+    b.actedThisRound = [...acted];
+    b.queue = [];
+    return null;
+  }
   while (b.queue.length) {
     const id = b.queue.shift();
     const u = b.units.find((x) => x.id === id);

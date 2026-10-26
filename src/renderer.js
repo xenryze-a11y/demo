@@ -1,7 +1,7 @@
-import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=eb8d84b6e81d";
-import { ART, drawSprite } from "./art.js?v=eb8d84b6e81d";
-import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=eb8d84b6e81d";
-import { nativeTimeline } from './native-combat.js?v=eb8d84b6e81d';
+import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=669213efe941";
+import { ART, drawSprite } from "./art.js?v=669213efe941";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=669213efe941";
+import { nativeTimeline } from './native-combat.js?v=669213efe941';
 export const W = 1024,
   H = 576;
 export function position(side, slot) {

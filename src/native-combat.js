@@ -1,4 +1,4 @@
-import { APK_SKILL_CONFIG } from './apk-config.js?v=eb8d84b6e81d';
+import { APK_SKILL_CONFIG } from './apk-config.js?v=669213efe941';
 
 // getRangeHero jump table @ 0x2f2358: range 5 selects the lowest HP ratio;
 // ranges 6..13 select (range - 5) distinct living targets after random ordering.

@@ -7,14 +7,14 @@ import {
   isProtagonist,
   HERO_SKILLS,
   equippedSpells,
-} from "./data.js?v=eb8d84b6e81d";
+} from "./data.js?v=669213efe941";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=eb8d84b6e81d";
+} from "./state.js?v=669213efe941";
 import {
   createBattle,
   living,
@@ -25,13 +25,13 @@ import {
   spellAction,
   heroSkillAction,
   applyAction,
-} from "./battle.js?v=eb8d84b6e81d";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=eb8d84b6e81d";
-import { Battlefield, prepareActionTimeline } from "./renderer.js?v=eb8d84b6e81d";
-import { dueNativeHits } from './native-combat.js?v=eb8d84b6e81d';
-import { Sound } from "./audio.js?v=eb8d84b6e81d";
-import { createMainPanel } from "./main-character.js?v=eb8d84b6e81d";
-import { createTraining } from "./training.js?v=eb8d84b6e81d";
+} from "./battle.js?v=669213efe941";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=669213efe941";
+import { Battlefield, prepareActionTimeline } from "./renderer.js?v=669213efe941";
+import { dueNativeHits } from './native-combat.js?v=669213efe941';
+import { Sound } from "./audio.js?v=669213efe941";
+import { createMainPanel } from "./main-character.js?v=669213efe941";
+import { createTraining } from "./training.js?v=669213efe941";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -415,7 +415,7 @@ export async function mountGame(root = document) {
       "help",
       frame(
         "操作说明",
-        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>英雄按速度轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部三个技能点击即可指挥释放；空槽保留原画面布局。在「主角技能」中更换出战技能。普通英雄从首次行动起按「技能→普攻→普攻」循环，卡塔琳娜会前移旋转并返回阵位。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–3 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
+        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>从前排第一阵位开始，按双方阵位顺序轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部三个技能点击即可指挥释放；空槽保留原画面布局。在「主角技能」中更换出战技能。普通英雄从首次行动起按「技能→普攻→普攻」循环，卡塔琳娜会前移旋转并返回阵位。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–3 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
         "help-window",
       ),
     );
@@ -716,6 +716,8 @@ export async function mountGame(root = document) {
           round: state.battle.round,
           duration: state.anim.duration,
           nativeId: action.nativeId,
+          side: state.battle.units.find((u) => u.id === action.actor)?.side,
+          slot: state.battle.units.find((u) => u.id === action.actor)?.slot,
           hitTimes: timeline.events.map((event) => event.at),
         },
       }),
