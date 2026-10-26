@@ -1,4 +1,4 @@
-import { HEROES, getHero, isProtagonist } from "./data.js?v=47d6efce13e9";
+import { HEROES, getHero, isProtagonist } from "./data.js?v=eb8d84b6e81d";
 import {
   TRAINING_CARD_XP,
   HERO_LEVEL_CAP,
@@ -6,7 +6,7 @@ import {
   heroStats,
   maxFeedCards,
   feedHero,
-} from "./progression.js?v=47d6efce13e9";
+} from "./progression.js?v=eb8d84b6e81d";
 
 function trainingCardIcon() {
   return `<svg viewBox="0 0 70 78" aria-hidden="true"><defs><linearGradient id="cardGreen" x2="0" y2="1"><stop stop-color="#6a9867"/><stop offset="1" stop-color="#132b20"/></linearGradient></defs><g stroke="#bac8ad" stroke-width="2"><rect x="8" y="10" width="45" height="58" rx="4" fill="#293e2c" transform="rotate(-12 30 38)"/><rect x="16" y="8" width="45" height="58" rx="4" fill="url(#cardGreen)" transform="rotate(9 38 37)"/><path d="M25 17L50 19 55 30 51 55 27 57 20 42Z" fill="none"/><path d="M20 32L37 16 55 34H44V51H31V33Z" fill="#91ff30" stroke="#d6ff9c"/></g><text x="35" y="74" text-anchor="middle" fill="#ffff7b" font-size="13">★★</text></svg>`;

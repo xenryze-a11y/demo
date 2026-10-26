@@ -1,5 +1,5 @@
-import { APK_HERO_CONFIG } from './apk-config.js?v=47d6efce13e9';
-import { nativeSkillConfig } from './native-combat.js?v=47d6efce13e9';
+import { APK_HERO_CONFIG } from './apk-config.js?v=eb8d84b6e81d';
+import { nativeSkillConfig } from './native-combat.js?v=eb8d84b6e81d';
 export const HEROES = [
   {
     id: "sun",
@@ -87,6 +87,7 @@ export const HEROES = [
   {
     id: "wind",
     nativeId: 2018,
+    basicBehavior: "attack",
     name: "风之女",
     title: "风语祝福",
     role: "辅助",
@@ -97,8 +98,8 @@ export const HEROES = [
     attack: 125,
     defense: 18,
     speed: 76,
-    skill: "复苏之风",
-    description: "替补英雄：优先治疗生命较低的队友。",
+    skill: "风刃",
+    description: "以风刃攻击敌人，风暴之眼攻击直线目标并沉默一回合。",
   },
 ];
 HEROES.push(
@@ -168,6 +169,7 @@ export const ENEMIES = {
   },
   wind: {
     heroSkillId: "wind",
+    basicBehavior: "attack",
     name: "风之女",
     kind: "healer",
     sprite: 5,

@@ -7,14 +7,14 @@ import {
   isProtagonist,
   HERO_SKILLS,
   equippedSpells,
-} from "./data.js?v=47d6efce13e9";
+} from "./data.js?v=eb8d84b6e81d";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=47d6efce13e9";
+} from "./state.js?v=eb8d84b6e81d";
 import {
   createBattle,
   living,
@@ -25,13 +25,13 @@ import {
   spellAction,
   heroSkillAction,
   applyAction,
-} from "./battle.js?v=47d6efce13e9";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=47d6efce13e9";
-import { Battlefield, prepareActionTimeline } from "./renderer.js?v=47d6efce13e9";
-import { dueNativeHits } from './native-combat.js?v=47d6efce13e9';
-import { Sound } from "./audio.js?v=47d6efce13e9";
-import { createMainPanel } from "./main-character.js?v=47d6efce13e9";
-import { createTraining } from "./training.js?v=47d6efce13e9";
+} from "./battle.js?v=eb8d84b6e81d";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=eb8d84b6e81d";
+import { Battlefield, prepareActionTimeline } from "./renderer.js?v=eb8d84b6e81d";
+import { dueNativeHits } from './native-combat.js?v=eb8d84b6e81d';
+import { Sound } from "./audio.js?v=eb8d84b6e81d";
+import { createMainPanel } from "./main-character.js?v=eb8d84b6e81d";
+import { createTraining } from "./training.js?v=eb8d84b6e81d";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -63,6 +63,7 @@ export async function mountGame(root = document) {
     heroProgress: save.heroProgress,
     wait: 0,
     loading: 0,
+    countdown: 0,
   };
   let result = null,
     frameId = 0,
@@ -169,6 +170,10 @@ export async function mountGame(root = document) {
   }
   function setMode(mode) {
     state.mode = mode;
+    if (mode !== 'battle') {
+      state.countdown = 0;
+      $('#fightBanner').hidden = true;
+    }
     $("#extrasMenu").hidden = true;
     $("#more").setAttribute("aria-expanded", "false");
     $("#game").dataset.mode = mode;
@@ -658,7 +663,8 @@ export async function mountGame(root = document) {
     updateBattle();
     $("#fightBanner").hidden = false;
     clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(() => ($("#fightBanner").hidden = true), 1000);
+    state.countdown = 3600;
+    $('#fightBanner').textContent = '3';
     sound.play("spell");
   }
   function cancelTarget() {
@@ -736,6 +742,13 @@ export async function mountGame(root = document) {
   function tickBattle(dt) {
     const b = state.battle;
     if (!b || state.paused || activeModal || state.targeting) return;
+    if (state.countdown > 0) {
+      state.countdown = Math.max(0, state.countdown - dt);
+      $('#fightBanner').textContent = state.countdown > 600
+        ? String(Math.ceil((state.countdown - 600) / 1000)) : 'FIGHT!';
+      $('#fightBanner').hidden = state.countdown === 0;
+      return;
+    }
     if (state.anim) {
       const a = state.anim;
       a.elapsed += dt;

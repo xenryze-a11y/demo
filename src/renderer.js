@@ -1,7 +1,7 @@
-import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=47d6efce13e9";
-import { ART, drawSprite } from "./art.js?v=47d6efce13e9";
-import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=47d6efce13e9";
-import { nativeTimeline } from './native-combat.js?v=47d6efce13e9';
+import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=eb8d84b6e81d";
+import { ART, drawSprite } from "./art.js?v=eb8d84b6e81d";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=eb8d84b6e81d";
+import { nativeTimeline } from './native-combat.js?v=eb8d84b6e81d';
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
@@ -82,7 +82,10 @@ export function prepareActionTimeline(battle, action) {
   }
   // Native MoveTo duration = abs(deltaX) / 1000 in 1280-wide design units.
   const travelMs = Math.abs(destination.x - origin.x) / 800 * 1000;
-  const animationMs = nativeDuration(actor.sprite, action.animation || 'attack') * 1000;
+  const animationMs = Math.max(
+    nativeDuration(actor.sprite, action.animation || 'attack') * 1000,
+    [11011, 12011, 13011].includes(action.nativeId) ? 2000 : 0,
+  );
   const timeline = nativeTimeline(action, { animationMs, travelMs });
   action.motion = { destination, timeline };
   return timeline;
@@ -381,7 +384,10 @@ export class Battlefield {
         );
       }
     }
-    if (anim) this.effect(anim.action, p, state.battle, now);
+    if (anim) {
+      this.ultimateOverlay(anim, state.battle);
+      this.effect(anim.action, p, state.battle, now);
+    }
     this.floats = this.floats.filter((f) => now - f.start < 1250);
     for (const f of this.floats) {
       const u = units.find((u) => u.id === f.id);
@@ -413,6 +419,33 @@ export class Battlefield {
       this.text("正在进入战场，请稍候…", 512, 530, "#e7dba7", 14);
     }
   }
+  ultimateOverlay(anim, battle) {
+    if (![11011, 12011, 13011].includes(anim.action.nativeId)) return;
+    const t = (anim.elapsed - anim.timeline.castStart) / 1000;
+    if (t < 0 || t >= 2) return;
+    const actor = battle.units.find((u) => u.id === anim.action.actor);
+    const head = ART['ultimateHead' + actor.nativeId];
+    if (!head) return;
+    const c = this.ctx;
+    const fade = Math.min(1, t / 0.12, (2 - t) / 0.8);
+    c.save();
+    c.globalAlpha = Math.max(0, fade);
+    c.fillStyle = '#0009';
+    c.fillRect(0, 0, W, H);
+    drawNativeEffect(c, 'zhandou_quanpingtexiao', 512, 365, 230, t, false, 'Animation1');
+    // playAction_anim: native head scale 2, slide in 0.4s, drift 0.8s,
+    // then fade over 0.8s. Convert native 1280-wide coordinates to 1024.
+    const width = head.width * 1.6;
+    const x = t < 0.4 ? -width + (width - 96) * t / 0.4
+      : -96 + 96 * Math.min(1, (t - 0.4) / 0.8);
+    c.drawImage(head, x, 0, width, head.height * 1.6);
+    const title = ART['skillTitle' + anim.action.nativeId];
+    if (title) c.drawImage(title, 377, 48, 270, 67);
+    c.restore();
+    const pos = actionPosition(battle, anim.action, anim.elapsed / anim.duration);
+    drawSprite(c, actor.sprite, pos.x, pos.y, heights[actor.kind] || 125,
+      actor.side === 'enemy', 1, anim.action.animation, t, false);
+  }
   effect(action, p, b, now) {
     const c = this.ctx,
       actor = b.units.find((u) => u.id === action.actor);
@@ -424,7 +457,8 @@ export class Battlefield {
     const castTime = (elapsed - (timeline?.castStart || 0)) / 1000;
     const casting = !timeline || elapsed >= timeline.castStart && elapsed <= timeline.castEnd;
     if (!casting) return;
-    if (!["attack", "bolt", "heal"].includes(action.kind) && p < 0.52) {
+    if (!["attack", "bolt", "heal"].includes(action.kind) && p < 0.52 &&
+        ![11011, 12011, 13011].includes(action.nativeId)) {
       const title = ART["skillTitle" + action.nativeId];
       if (title) c.drawImage(title, from.x - 90, from.y - 175, 180, 45);
       else this.text(action.name, from.x, from.y - 150, "#ffe38d", 20);
@@ -495,6 +529,11 @@ export class Battlefield {
           false,
         );
         continue;
+      }
+      if (action.nativeConfig?.effectFile === 'heroEft2018' && castTime >= 0) {
+        drawNativeEffect(c, 'heroEft2018', to.x,
+          to.y - (action.nativeConfig.effectY || 0) * 0.8,
+          170, castTime, false, action.nativeConfig.effect);
       }
       if (action.kind === "lotus" && castTime >= (action.nativeConfig?.effectDelay ?? 0))
         drawNativeEffect(

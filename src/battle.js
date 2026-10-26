@@ -1,7 +1,7 @@
-import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=47d6efce13e9";
-import { heroStats } from "./progression.js?v=47d6efce13e9";
-import { APK_HERO_CONFIG } from './apk-config.js?v=47d6efce13e9';
-import { attachNativeConfig, selectNativeSkill, resetNativeCooldown } from './native-combat.js?v=47d6efce13e9';
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=eb8d84b6e81d";
+import { heroStats } from "./progression.js?v=eb8d84b6e81d";
+import { APK_HERO_CONFIG } from './apk-config.js?v=eb8d84b6e81d';
+import { attachNativeConfig, selectNativeSkill, resetNativeCooldown, selectNativeTargets } from './native-combat.js?v=eb8d84b6e81d';
 export function createBattle(
   formation,
   stageId = 0,
@@ -105,7 +105,7 @@ export function beginNextRound(b) {
 export function chooseTarget(b, actor) {
   const friends = living(b, actor.side),
     enemies = living(b, actor.side === "ally" ? "enemy" : "ally");
-  if (actor.kind === "healer") {
+  if (actor.kind === "healer" && actor.basicBehavior !== "attack") {
     const hurt = friends
       .filter((u) => u.hp / u.maxHp < 0.85)
       .sort((a, c) => a.hp / a.maxHp - c.hp / c.maxHp);
@@ -271,11 +271,7 @@ export function heroSkillAction(b, id, random = () => battleRandom(b)) {
       .slice(0, 2)
       .map((u) => ({ id: u.id, amount: Math.round(actor.attack * 1.35) }));
   if (skillId === "rogue") {
-    const pool = enemies.slice();
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
+    const pool = selectNativeTargets(enemies, 8, random);
     targets = Array.from({ length: 3 }, () =>
       pool
         .slice(0, 3)

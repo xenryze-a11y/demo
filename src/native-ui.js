@@ -70,4 +70,11 @@ export const NATIVE_UI_URLS = {
   "eft3_0": new URL("../assets/native/eft3_0.png", import.meta.url).href,
   "eft4_0": new URL("../assets/native/eft4_0.png", import.meta.url).href,
   "crystalIcon": new URL("../assets/native/crystalIcon.png", import.meta.url).href,
+  "ultimateHead1001": new URL("../assets/native/ultimateHead1001.png", import.meta.url).href,
+  "ultimateHead1002": new URL("../assets/native/ultimateHead1002.png", import.meta.url).href,
+  "ultimateHead1003": new URL("../assets/native/ultimateHead1003.png", import.meta.url).href,
+  "skillEmit": new URL("../assets/native/skillEmit.png", import.meta.url).href,
+  "eft5_0": new URL("../assets/native/eft5_0.png", import.meta.url).href,
+  "eft6_0": new URL("../assets/native/eft6_0.png", import.meta.url).href,
+  "eft6_1": new URL("../assets/native/eft6_1.png", import.meta.url).href,
 };

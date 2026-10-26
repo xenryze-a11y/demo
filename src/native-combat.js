@@ -1,4 +1,24 @@
-import { APK_SKILL_CONFIG } from './apk-config.js?v=47d6efce13e9';
+import { APK_SKILL_CONFIG } from './apk-config.js?v=eb8d84b6e81d';
+
+// getRangeHero jump table @ 0x2f2358: range 5 selects the lowest HP ratio;
+// ranges 6..13 select (range - 5) distinct living targets after random ordering.
+// Callers supply the side-filtered pool; unsupported modes stay explicit.
+export function selectNativeTargets(pool, range, random = Math.random) {
+  const alive = pool.filter((unit) => unit.hp > 0).slice().sort((a, b) => a.slot - b.slot);
+  if (range === 5) {
+    const selected = alive.reduce((best, unit) =>
+      !best || unit.hp / unit.maxHp < best.hp / best.maxHp ? unit : best, null);
+    return selected ? [selected] : [];
+  }
+  if (range >= 6 && range <= 13 && Number.isInteger(range)) {
+    for (let i = alive.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [alive[i], alive[j]] = [alive[j], alive[i]];
+    }
+    return alive.slice(0, range - 5);
+  }
+  throw new RangeError('Native target mode has not been recovered: ' + range);
+}
 
 // FightSkillInfo::parse @ 0x2ac65c, cross-checked against the named getters.
 // Values are supplied at runtime. Never manufacture a "recovered" server row.

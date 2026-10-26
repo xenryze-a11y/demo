@@ -126,5 +126,12 @@
   "eft2_0": "native/eft2_0.png",
   "eft3_0": "native/eft3_0.png",
   "eft4_0": "native/eft4_0.png",
-  "crystalIcon": "native/crystalIcon.png"
+  "crystalIcon": "native/crystalIcon.png",
+  "ultimateHead1001": "native/ultimateHead1001.png",
+  "ultimateHead1002": "native/ultimateHead1002.png",
+  "ultimateHead1003": "native/ultimateHead1003.png",
+  "skillEmit": "native/skillEmit.png",
+  "eft5_0": "native/eft5_0.png",
+  "eft6_0": "native/eft6_0.png",
+  "eft6_1": "native/eft6_1.png"
 }

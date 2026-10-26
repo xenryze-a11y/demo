@@ -1,5 +1,5 @@
-import { NATIVE_MODELS } from "./native-data.js?v=47d6efce13e9";
-import { NATIVE_EFFECTS } from "./native-effects.js?v=47d6efce13e9";
+import { NATIVE_MODELS } from "./native-data.js?v=eb8d84b6e81d";
+import { NATIVE_EFFECTS } from "./native-effects.js?v=eb8d84b6e81d";
 const modelAt = (index) =>
   index >= 100 ? NATIVE_EFFECTS[index - 100] : NATIVE_MODELS[index];
 let nativeImages;
@@ -104,7 +104,9 @@ export function nativePose(
           texture,
           z: bone.z + (track.z || 0),
           alpha: (track.color?.a ?? 255) / 255,
-          additive: index >= 100 || /^(a_|b_)/.test(bone.name),
+          // Cocos blendFunc: GL_ONE/GL_ONE is additive; 1/771 is normal
+          // premultiplied-alpha blending. Do not wash out black/red effects.
+          additive: track.bd_dst != null ? track.bd_dst === 1 : /^(a_|b_)/.test(bone.name),
         },
       ];
     })
@@ -205,7 +207,7 @@ export function nativeDuration(index, animation = "attack") {
   const move = m?.moves[animation] || m?.moves.stand;
   return move ? move.dr / 30 : 0.72;
 }
-export function drawNativeEffect(c, name, x, y, height, seconds, loop = false) {
+export function drawNativeEffect(c, name, x, y, height, seconds, loop = false, animation = "stand") {
   const i = NATIVE_EFFECTS.findIndex((m) => m.id === name);
   if (i < 0) return false;
   return drawNativeRig(
@@ -216,7 +218,7 @@ export function drawNativeEffect(c, name, x, y, height, seconds, loop = false) {
     height,
     false,
     1,
-    "stand",
+    animation,
     seconds,
     loop,
   );

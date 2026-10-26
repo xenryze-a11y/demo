@@ -1,2 +1,2 @@
-import { mountGame } from "./game.js?v=47d6efce13e9";
+import { mountGame } from "./game.js?v=eb8d84b6e81d";
 export const game = await mountGame(document);
