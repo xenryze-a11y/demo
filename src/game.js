@@ -1,4 +1,4 @@
-import { createFormationRoster } from "./formation-roster.js?v=8fac583645eb";
+import { createFormationRoster } from "./formation-roster.js?v=9ed3ca2f5987";
 import {
   HEROES,
   STAGES,
@@ -8,31 +8,29 @@ import {
   isProtagonist,
   HERO_SKILLS,
   equippedSpells,
-} from "./data.js?v=8fac583645eb";
+} from "./data.js?v=9ed3ca2f5987";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=8fac583645eb";
+} from "./state.js?v=9ed3ca2f5987";
 import {
   createBattle,
   living,
   refillQueue,
   nextActor,
   beginNextRound,
-  basicAction,
-  spellAction,
-  heroSkillAction,
   applyAction,
-} from "./battle.js?v=8fac583645eb";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=8fac583645eb";
-import { Battlefield, prepareActionTimeline } from "./renderer.js?v=8fac583645eb";
-import { dueNativeHits } from "./native-combat.js?v=8fac583645eb";
-import { Sound } from "./audio.js?v=8fac583645eb";
-import { createMainPanel } from "./main-character.js?v=8fac583645eb";
-import { createTraining } from "./training.js?v=8fac583645eb";
+} from "./battle.js?v=9ed3ca2f5987";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=9ed3ca2f5987";
+import { Battlefield, prepareActionTimeline } from "./renderer.js?v=9ed3ca2f5987";
+import { dueNativeHits } from "./native-combat.js?v=9ed3ca2f5987";
+import { resolveActorCommand } from "./battle-commands.js?v=9ed3ca2f5987";
+import { Sound } from "./audio.js?v=9ed3ca2f5987";
+import { createMainPanel } from "./main-character.js?v=9ed3ca2f5987";
+import { createTraining } from "./training.js?v=9ed3ca2f5987";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -747,11 +745,6 @@ export async function mountGame(root = document) {
     updateBattle();
     sound.play();
   }
-  function command(id, target) {
-    return id.startsWith("hero:")
-      ? heroSkillAction(state.battle, id.slice(5))
-      : spellAction(state.battle, id, target);
-  }
   function launch(action) {
     const timeline = prepareActionTimeline(state.battle, action);
     state.anim = {
@@ -783,59 +776,15 @@ export async function mountGame(root = document) {
     );
     updateBattle();
   }
-  function chooseAuto() {
-    const b = state.battle,
-      main = living(b, "ally").find((u) => u.category === "protagonist");
-    if (!main || main.silence) return null;
-    const skills = equippedSpells(b, save.skillLoadouts).filter(
-      (s) => !b.cooldowns[s.id] && b.energy >= s.cost,
-    );
-    const heal = skills.find(
-      (s) => s.healing && living(b, "ally").some((u) => u.hp / u.maxHp < 0.6),
-    );
-    return (
-      heal?.id ||
-      skills.find((s) => s.cost === 50)?.id ||
-      skills.find((s) => s.gain)?.id ||
-      null
-    );
-  }
   function actionForActor(actor) {
-    const b = state.battle;
-    const pending = state.pending;
-    const controlsActor =
-      pending &&
-      (pending.id.startsWith("hero:")
-        ? pending.id.slice(5) === actor.id
-        : actor.side === "ally" && actor.category === "protagonist");
-    const pendingCooling = pending?.id.startsWith("hero:")
-      ? b.heroCooldowns[actor.id]
-      : b.cooldowns[pending?.id];
-    if (controlsActor && !actor.silence && !actor.stun && !pendingCooling) {
-      const target =
-        living(b, "enemy").find((u) => u.id === pending.target) ||
-        living(b, "enemy").sort(
-          (a, c) => (a.slot % 3) - (c.slot % 3) || a.slot - c.slot,
-        )[0];
-      const action = command(pending.id, target?.id);
-      if (!action.error) {
-        state.pending = null;
-        return action;
-      }
-      toast(action.error);
-    }
-    if (
-      state.auto &&
-      actor.side === "ally" &&
-      actor.category === "protagonist"
-    ) {
-      const id = chooseAuto();
-      if (id) {
-        const action = command(id, living(b, "enemy")[0]?.id);
-        if (!action.error) return action;
-      }
-    }
-    return basicAction(b, actor);
+    const decision = resolveActorCommand(state.battle, actor, {
+      pending: state.pending,
+      auto: state.auto,
+      skillLoadouts: save.skillLoadouts,
+    });
+    state.pending = decision.pending;
+    if (decision.notice) toast(decision.notice);
+    return decision.action;
   }
   function tickBattle(dt) {
     const b = state.battle;

@@ -1,4 +1,4 @@
-import { HEROES, isProtagonist } from "./data.js?v=8fac583645eb";
+import { HEROES, isProtagonist } from "./data.js?v=9ed3ca2f5987";
 
 // FightReady::switchChange uses a 400x490 panel. getHerosPosi centers
 // are (976+110*column, 531-105*row) in the 1280x720 native design.

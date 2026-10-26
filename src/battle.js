@@ -1,18 +1,18 @@
-import { nativeUnitHit } from "./native-damage.js?v=8fac583645eb";
-import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=8fac583645eb";
-import { heroStats } from "./progression.js?v=8fac583645eb";
-import { APK_HERO_CONFIG } from "./apk-config.js?v=8fac583645eb";
+import { nativeUnitHit } from "./native-damage.js?v=9ed3ca2f5987";
+import { getHero, ENEMIES, SPELLS, STAGES, HERO_SKILLS } from "./data.js?v=9ed3ca2f5987";
+import { heroStats } from "./progression.js?v=9ed3ca2f5987";
+import { APK_HERO_CONFIG } from "./apk-config.js?v=9ed3ca2f5987";
 import {
   freshTurnCursor,
   advanceNativeTurn,
   remainingNativeTurns,
-} from "./native-turns.js?v=8fac583645eb";
+} from "./native-turns.js?v=9ed3ca2f5987";
 import {
   attachNativeConfig,
   selectNativeSkill,
   resetNativeCooldown,
   selectNativeTargets,
-} from "./native-combat.js?v=8fac583645eb";
+} from "./native-combat.js?v=9ed3ca2f5987";
 export function createBattle(
   formation,
   stageId = 0,

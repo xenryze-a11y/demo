@@ -5,8 +5,8 @@ import {
   isProtagonist,
   MAIN_CLASSES,
   skillLoadout,
-} from "./data.js?v=8fac583645eb";
-import { normalizeHeroProgress } from "./progression.js?v=8fac583645eb";
+} from "./data.js?v=9ed3ca2f5987";
+import { normalizeHeroProgress } from "./progression.js?v=9ed3ca2f5987";
 const KEY = "sword-recreation-save-v1";
 export const freshSave = () => ({
   version: 1,
@@ -15,7 +15,7 @@ export const freshSave = () => ({
   crystals: 100,
   xp: 343,
   unlocked: 0,
-  stars: {},
+  stars: { 0: 0, 1: 0, 2: 0, 3: 0 },
   sound: false,
   trainingCards: 6,
   skillLoadouts: Object.fromEntries(
@@ -29,9 +29,16 @@ export function normalizeSave(raw) {
   const clean = freshSave();
   if (!raw || raw.version !== 1) return clean;
   for (const key of ["gold", "crystals", "xp"])
-    if (Number.isFinite(raw[key]) && raw[key] >= 0)
+    if (
+      Number.isSafeInteger(Math.floor(raw[key])) &&
+      Number.isFinite(raw[key]) &&
+      raw[key] >= 0
+    )
       clean[key] = Math.floor(raw[key]);
-  clean.unlocked = Math.max(0, Math.min(2, Number(raw.unlocked) || 0));
+  const unlocked = Number(raw.unlocked);
+  clean.unlocked = Number.isFinite(unlocked)
+    ? Math.max(0, Math.min(2, Math.floor(unlocked)))
+    : 0;
   clean.sound = raw.sound === true;
   for (const id of MAIN_CLASSES)
     clean.skillLoadouts[id] = skillLoadout(id, raw.skillLoadouts?.[id]);

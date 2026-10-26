@@ -1,5 +1,5 @@
-import { NATIVE_MODELS } from "./native-data.js?v=8fac583645eb";
-import { NATIVE_EFFECTS } from "./native-effects.js?v=8fac583645eb";
+import { NATIVE_MODELS } from "./native-data.js?v=9ed3ca2f5987";
+import { NATIVE_EFFECTS } from "./native-effects.js?v=9ed3ca2f5987";
 const modelAt = (index) =>
   index >= 100 ? NATIVE_EFFECTS[index - 100] : NATIVE_MODELS[index];
 let nativeImages;

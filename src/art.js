@@ -1,5 +1,5 @@
-import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=8fac583645eb";
-import { NATIVE_UI_URLS } from "./native-ui.js?v=8fac583645eb";
+import { initNativeRigs, drawNativeRig } from "./native-rig.js?v=9ed3ca2f5987";
+import { NATIVE_UI_URLS } from "./native-ui.js?v=9ed3ca2f5987";
 const urls = {
   ...NATIVE_UI_URLS,
   map: new URL("../assets/map.png", import.meta.url).href,

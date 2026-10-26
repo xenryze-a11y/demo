@@ -1,5 +1,5 @@
-import { nativeSlot } from "./native-turns.js?v=8fac583645eb";
-import { APK_SKILL_CONFIG } from "./apk-config.js?v=8fac583645eb";
+import { nativeSlot } from "./native-turns.js?v=9ed3ca2f5987";
+import { APK_SKILL_CONFIG } from "./apk-config.js?v=9ed3ca2f5987";
 
 // getRangeHero jump table @ 0x2f2358: range 5 selects the lowest HP ratio;
 // ranges 6..13 select (range - 5) distinct living targets after random ordering.

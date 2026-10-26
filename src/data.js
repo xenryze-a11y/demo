@@ -1,5 +1,5 @@
-import { APK_HERO_CONFIG } from './apk-config.js?v=8fac583645eb';
-import { nativeSkillConfig } from './native-combat.js?v=8fac583645eb';
+import { APK_HERO_CONFIG } from './apk-config.js?v=9ed3ca2f5987';
+import { nativeSkillConfig } from './native-combat.js?v=9ed3ca2f5987';
 export const HEROES = [
   {
     id: "sun",

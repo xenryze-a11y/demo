@@ -1,9 +1,9 @@
-import { NATIVE_LAYOUT } from "./native-layout.js?v=8fac583645eb";
-import { nativeSlot } from "./native-turns.js?v=8fac583645eb";
-import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=8fac583645eb";
-import { ART, drawSprite } from "./art.js?v=8fac583645eb";
-import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=8fac583645eb";
-import { nativeTimeline } from "./native-combat.js?v=8fac583645eb";
+import { NATIVE_LAYOUT } from "./native-layout.js?v=9ed3ca2f5987";
+import { nativeSlot } from "./native-turns.js?v=9ed3ca2f5987";
+import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=9ed3ca2f5987";
+import { ART, drawSprite } from "./art.js?v=9ed3ca2f5987";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=9ed3ca2f5987";
+import { nativeTimeline } from "./native-combat.js?v=9ed3ca2f5987";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {

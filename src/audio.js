@@ -1,5 +1,5 @@
-import { NATIVE_AUDIO_URLS } from "./native-audio.js?v=8fac583645eb";
-import { APK_HERO_CONFIG } from "./apk-config.js?v=8fac583645eb";
+import { NATIVE_AUDIO_URLS } from "./native-audio.js?v=9ed3ca2f5987";
+import { APK_HERO_CONFIG } from "./apk-config.js?v=9ed3ca2f5987";
 export class Sound {
   constructor(enabled = false) {
     this._enabled = enabled;
