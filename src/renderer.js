@@ -1,15 +1,18 @@
-import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=669213efe941";
-import { ART, drawSprite } from "./art.js?v=669213efe941";
-import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=669213efe941";
-import { nativeTimeline } from './native-combat.js?v=669213efe941';
+import { NATIVE_LAYOUT } from "./native-layout.js?v=8fac583645eb";
+import { nativeSlot } from "./native-turns.js?v=8fac583645eb";
+import { drawNativeEffect, nativeDuration } from "./native-rig.js?v=8fac583645eb";
+import { ART, drawSprite } from "./art.js?v=8fac583645eb";
+import { HEROES, ENEMIES, STAGES, getHero, SPELLS } from "./data.js?v=8fac583645eb";
+import { nativeTimeline } from "./native-combat.js?v=8fac583645eb";
 export const W = 1024,
   H = 576;
 export function position(side, slot) {
-  const row = Math.floor(slot / 3),
-    col = slot % 3;
-  return side === "ally"
-    ? { x: 170 + col * 140 - row * 50, y: 251 + row * 82 }
-    : { x: 650 + col * 93 + row * 37, y: 242 + row * 57 };
+  const table =
+    side === "ally"
+      ? NATIVE_LAYOUT.formationAlly
+      : NATIVE_LAYOUT.formationEnemy;
+  const [x, y] = table[nativeSlot(side, slot)];
+  return { x: x * 0.8, y: (720 - y) * 0.8 };
 }
 const heights = {
   guard: 137,
@@ -22,49 +25,43 @@ const heights = {
   sentinel: 163,
   boss: 195,
 };
-// Measured separately in the 8.5 s formation and 18 s combat reference frames.
+// Static initializer 0x1d2650 builds both 9-slot battle coordinate arrays.
 export function battlePosition(side, slot) {
-  const row = Math.floor(slot / 3),
-    col = slot % 3;
-  return side === "ally"
-    ? { x: 160 + col * 140 - row * 50, y: 230 + row * 100 }
-    : { x: 640 + col * 130 + row * 50, y: 230 + row * 100 };
+  const [x, y] =
+    NATIVE_LAYOUT.battle[(side === "enemy" ? 9 : 0) + nativeSlot(side, slot)];
+  return { x: x * 0.8, y: (720 - y) * 0.8 };
 }
 export function actionPosition(battle, action, progress) {
   const actor = battle.units.find((u) => u.id === action.actor);
   if (!actor) return { x: 0, y: 0 };
   const origin = battlePosition(actor.side, actor.slot);
+  if (!action.motion && action.movement === "advance-spin")
+    prepareActionTimeline(battle, action);
   if (action.motion) {
     const { destination, timeline } = action.motion;
     const elapsed = progress * timeline.duration;
-    const t = timeline.castStart <= 0 ? 0 : Math.max(0, Math.min(1,
-      elapsed < timeline.castStart ? elapsed / timeline.castStart :
-      elapsed > timeline.castEnd ? 1 - (elapsed - timeline.castEnd) / timeline.castStart : 1));
-    return { x: origin.x + (destination.x - origin.x) * t,
-      y: origin.y + (destination.y - origin.y) * t };
+    const t =
+      timeline.castStart <= 0
+        ? elapsed <= timeline.castEnd
+          ? 1
+          : 0
+        : Math.max(
+            0,
+            Math.min(
+              1,
+              elapsed < timeline.castStart
+                ? elapsed / timeline.castStart
+                : elapsed > timeline.castEnd
+                  ? 1 - (elapsed - timeline.castEnd) / timeline.castStart
+                  : 1,
+            ),
+          );
+    return {
+      x: origin.x + (destination.x - origin.x) * t,
+      y: origin.y + (destination.y - origin.y) * t,
+    };
   }
-  if (action.movement !== "advance-spin") return origin;
-  const targets = action.targets
-    .map((h) => battle.units.find((u) => u.id === h.id))
-    .filter(Boolean);
-  const direction = actor.side === "ally" ? 1 : -1;
-  const nearest = targets.length
-    ? Math.min(
-        ...targets.map((u) =>
-          Math.abs(battlePosition(u.side, u.slot).x - origin.x),
-        ),
-      )
-    : 250;
-  const distance = Math.max(0, Math.min(180, nearest - 70));
-  const phase =
-    progress < 0.18
-      ? progress / 0.18
-      : progress > 0.82
-        ? (1 - progress) / 0.18
-        : 1;
-  const t = Math.max(0, Math.min(1, phase));
-  const eased = t * t * (3 - 2 * t);
-  return { x: origin.x + direction * distance * eased, y: origin.y };
+  return origin;
 }
 export function prepareActionTimeline(battle, action) {
   const actor = battle.units.find((u) => u.id === action.actor);
@@ -72,18 +69,28 @@ export function prepareActionTimeline(battle, action) {
   const origin = battlePosition(actor.side, actor.slot);
   const destination = { ...origin };
   const mode = action.nativeConfig?.attackPosition;
-  if (target && (mode === 1 || mode === 4 || action.kind === 'attack')) {
+  const otherSide = actor.side === "ally" ? "enemy" : "ally";
+  if (
+    (target && [1, 2, 4, 5, 6].includes(mode)) ||
+    (target && action.kind === "attack")
+  ) {
     const to = battlePosition(target.side, target.slot);
-    // fightGoAct position modes 1 and 4: target X ±120 / ±240 native units.
-    // Layout is scaled from 1280 to 1024. Mode 4's fixed Y still uses the
-    // demo row until the native posXY_Hero initializer is fully mapped.
-    destination.x = to.x + (actor.side === 'ally' ? -1 : 1) * (mode === 4 ? 192 : 96);
-    destination.y = mode === 4 ? origin.y : to.y;
+    const offset = { 1: 120, 2: 240, 4: 240, 5: 340, 6: 470 }[mode] || 120;
+    destination.x = to.x + (actor.side === "ally" ? -1 : 1) * offset * 0.8;
+    destination.y =
+      mode === 4 ? (720 - NATIVE_LAYOUT.battle[1][1]) * 0.8 : to.y;
+  } else if (mode === 3 || mode === 7) {
+    destination.x = 512 + (mode === 3 ? (actor.side === "ally" ? -88 : 88) : 0);
+    destination.y = (720 - NATIVE_LAYOUT.battle[1][1]) * 0.8;
+  } else if (mode === 8) {
+    const [x, y] = NATIVE_LAYOUT.battle[(otherSide === "enemy" ? 9 : 0) + 4];
+    destination.x = x * 0.8;
+    destination.y = (720 - y) * 0.8;
   }
   // Native MoveTo duration = abs(deltaX) / 1000 in 1280-wide design units.
-  const travelMs = Math.abs(destination.x - origin.x) / 800 * 1000;
+  const travelMs = (Math.abs(destination.x - origin.x) / 800) * 1000;
   const animationMs = Math.max(
-    nativeDuration(actor.sprite, action.animation || 'attack') * 1000,
+    nativeDuration(actor.sprite, action.animation || "attack") * 1000,
     [11011, 12011, 13011].includes(action.nativeId) ? 2000 : 0,
   );
   const timeline = nativeTimeline(action, { animationMs, travelMs });
@@ -257,7 +264,8 @@ export class Battlefield {
       const acting = anim?.action.actor === u.id;
       const spinning = acting && anim.action.movement === "advance-spin";
       const timeline = acting ? anim.timeline : null;
-      const travelling = timeline?.castStart > 0 &&
+      const travelling =
+        timeline?.castStart > 0 &&
         (anim.elapsed < timeline.castStart || anim.elapsed > timeline.castEnd);
       const returning = timeline && anim.elapsed > timeline.castEnd;
       if (acting) ({ x, y } = actionPosition(state.battle, anim.action, p));
@@ -281,17 +289,43 @@ export class Battlefield {
         c.ellipse(x, y, 35, 8, 0, 0, 7);
         c.stroke();
       }
-      const flip = (u.side === "enemy") !== !!(travelling && returning);
+      const movementX = acting
+        ? anim.action.motion.destination.x - origin.x
+        : 0;
+      const flip = travelling
+        ? (returning ? -movementX : movementX) < 0
+        : u.side === "enemy";
       const struck =
         anim?.action.targets.some((hit) => hit.id === u.id && !hit.heal) &&
         p > 0.5 &&
         p < 0.8;
-      const motion = dead ? "dead" : travelling ? "run" : acting
-        ? anim.action.animation || (["attack", "bolt"].includes(anim.action.kind) ? "attack" : "skill1")
-        : struck ? "hurt" : "stand";
+      const motion = dead
+        ? "dead"
+        : travelling
+          ? "run"
+          : acting
+            ? anim.action.animation ||
+              (["attack", "bolt"].includes(anim.action.kind)
+                ? "attack"
+                : "skill1")
+            : struck
+              ? "hurt"
+              : "stand";
       const motionTime = acting
-        ? Math.max(0, anim.elapsed - (travelling ? (returning ? timeline.castEnd : 0) : timeline.castStart)) / 1000
-        : dead ? 2 : struck ? (p - 0.5) * 0.4 : now / 1000 + u.slot * 0.17;
+        ? Math.max(
+            0,
+            anim.elapsed -
+              (travelling
+                ? returning
+                  ? timeline.castEnd
+                  : 0
+                : timeline.castStart),
+          ) / 1000
+        : dead
+          ? 2
+          : struck
+            ? (p - 0.5) * 0.4
+            : now / 1000 + u.slot * 0.17;
       drawSprite(
         c,
         u.sprite,
@@ -332,10 +366,10 @@ export class Battlefield {
         c.stroke();
         this.text("▼", x, y - height - 8, "#fff18e", 20);
       }
-      if (!prep && !dead && (u.shield || u.reflect))
+      if (!prep && !dead && (u.shield || u.reflect || u.blessingBlock))
         drawNativeEffect(
           c,
-          u.shield ? "skill20101_add" : "skill20301_add",
+          u.shield || u.blessingBlock ? "skill20101_add" : "skill20301_add",
           x,
           y,
           125,
@@ -343,7 +377,7 @@ export class Battlefield {
           true,
         );
       const status = [
-        u.shield > 0 ? "护盾" : "",
+        u.blessingBlock > 0 ? "格挡" : u.shield > 0 ? "护盾" : "",
         u.reflect ? "反伤" : "",
         u.stun ? "冰封" : "",
         u.poison ? "剧毒" : "",
@@ -424,27 +458,52 @@ export class Battlefield {
     const t = (anim.elapsed - anim.timeline.castStart) / 1000;
     if (t < 0 || t >= 2) return;
     const actor = battle.units.find((u) => u.id === anim.action.actor);
-    const head = ART['ultimateHead' + actor.nativeId];
+    const head = ART["ultimateHead" + actor.nativeId];
     if (!head) return;
     const c = this.ctx;
     const fade = Math.min(1, t / 0.12, (2 - t) / 0.8);
     c.save();
     c.globalAlpha = Math.max(0, fade);
-    c.fillStyle = '#0009';
+    c.fillStyle = "#0009";
     c.fillRect(0, 0, W, H);
-    drawNativeEffect(c, 'zhandou_quanpingtexiao', 512, 365, 230, t, false, 'Animation1');
+    drawNativeEffect(
+      c,
+      "zhandou_quanpingtexiao",
+      512,
+      365,
+      230,
+      t,
+      false,
+      "Animation1",
+    );
     // playAction_anim: native head scale 2, slide in 0.4s, drift 0.8s,
     // then fade over 0.8s. Convert native 1280-wide coordinates to 1024.
     const width = head.width * 1.6;
-    const x = t < 0.4 ? -width + (width - 96) * t / 0.4
-      : -96 + 96 * Math.min(1, (t - 0.4) / 0.8);
+    const x =
+      t < 0.4
+        ? -width + ((width - 96) * t) / 0.4
+        : -96 + 96 * Math.min(1, (t - 0.4) / 0.8);
     c.drawImage(head, x, 0, width, head.height * 1.6);
-    const title = ART['skillTitle' + anim.action.nativeId];
+    const title = ART["skillTitle" + anim.action.nativeId];
     if (title) c.drawImage(title, 377, 48, 270, 67);
     c.restore();
-    const pos = actionPosition(battle, anim.action, anim.elapsed / anim.duration);
-    drawSprite(c, actor.sprite, pos.x, pos.y, heights[actor.kind] || 125,
-      actor.side === 'enemy', 1, anim.action.animation, t, false);
+    const pos = actionPosition(
+      battle,
+      anim.action,
+      anim.elapsed / anim.duration,
+    );
+    drawSprite(
+      c,
+      actor.sprite,
+      pos.x,
+      pos.y,
+      heights[actor.kind] || 125,
+      actor.side === "enemy",
+      1,
+      anim.action.animation,
+      t,
+      false,
+    );
   }
   effect(action, p, b, now) {
     const c = this.ctx,
@@ -455,10 +514,15 @@ export class Battlefield {
     const timeline = action.motion?.timeline;
     const elapsed = p * (timeline?.duration || 1350);
     const castTime = (elapsed - (timeline?.castStart || 0)) / 1000;
-    const casting = !timeline || elapsed >= timeline.castStart && elapsed <= timeline.castEnd;
+    const casting =
+      !timeline ||
+      (elapsed >= timeline.castStart && elapsed <= timeline.castEnd);
     if (!casting) return;
-    if (!["attack", "bolt", "heal"].includes(action.kind) && p < 0.52 &&
-        ![11011, 12011, 13011].includes(action.nativeId)) {
+    if (
+      !["attack", "bolt", "heal"].includes(action.kind) &&
+      p < 0.52 &&
+      ![11011, 12011, 13011].includes(action.nativeId)
+    ) {
       const title = ART["skillTitle" + action.nativeId];
       if (title) c.drawImage(title, from.x - 90, from.y - 175, 180, 45);
       else this.text(action.name, from.x, from.y - 150, "#ffe38d", 20);
@@ -518,10 +582,10 @@ export class Battlefield {
         c.fill();
         c.restore();
       }
-      if (hit.shield || hit.reflect) {
+      if (hit.shield || hit.reflect || hit.blessingBlock) {
         drawNativeEffect(
           c,
-          hit.shield ? "skill20101_add" : "skill20301_add",
+          hit.shield || hit.blessingBlock ? "skill20101_add" : "skill20301_add",
           to.x,
           to.y,
           135,
@@ -530,12 +594,22 @@ export class Battlefield {
         );
         continue;
       }
-      if (action.nativeConfig?.effectFile === 'heroEft2018' && castTime >= 0) {
-        drawNativeEffect(c, 'heroEft2018', to.x,
+      if (action.nativeConfig?.effectFile === "heroEft2018" && castTime >= 0) {
+        drawNativeEffect(
+          c,
+          "heroEft2018",
+          to.x,
           to.y - (action.nativeConfig.effectY || 0) * 0.8,
-          170, castTime, false, action.nativeConfig.effect);
+          170,
+          castTime,
+          false,
+          action.nativeConfig.effect,
+        );
       }
-      if (action.kind === "lotus" && castTime >= (action.nativeConfig?.effectDelay ?? 0))
+      if (
+        action.kind === "lotus" &&
+        castTime >= (action.nativeConfig?.effectDelay ?? 0)
+      )
         drawNativeEffect(
           c,
           "skill22901_front_loop",
@@ -552,7 +626,9 @@ export class Battlefield {
         c.restore();
         continue;
       }
-      const latest = timeline?.events.filter((event) => event.at <= elapsed).at(-1);
+      const latest = timeline?.events
+        .filter((event) => event.at <= elapsed)
+        .at(-1);
       const impact = latest ? (elapsed - latest.at) / 1000 : -1;
       if (impact >= 0 && impact < 0.8)
         drawNativeEffect(

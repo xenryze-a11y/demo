@@ -5,9 +5,9 @@ import {
   isProtagonist,
   getHero,
   skillLoadout,
-} from "./data.js?v=669213efe941";
-import { levelFor } from "./state.js?v=669213efe941";
-import { iconSvg } from "./art.js?v=669213efe941";
+} from "./data.js?v=8fac583645eb";
+import { levelFor } from "./state.js?v=8fac583645eb";
+import { iconSvg } from "./art.js?v=8fac583645eb";
 export function createMainPanel({
   root,
   save,

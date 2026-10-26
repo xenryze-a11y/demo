@@ -1,3 +1,4 @@
+import { createFormationRoster } from "./formation-roster.js?v=8fac583645eb";
 import {
   HEROES,
   STAGES,
@@ -7,14 +8,14 @@ import {
   isProtagonist,
   HERO_SKILLS,
   equippedSpells,
-} from "./data.js?v=669213efe941";
+} from "./data.js?v=8fac583645eb";
 import {
   readSave,
   writeSave,
   levelFor,
   placeHero,
   removeHero,
-} from "./state.js?v=669213efe941";
+} from "./state.js?v=8fac583645eb";
 import {
   createBattle,
   living,
@@ -25,13 +26,13 @@ import {
   spellAction,
   heroSkillAction,
   applyAction,
-} from "./battle.js?v=669213efe941";
-import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=669213efe941";
-import { Battlefield, prepareActionTimeline } from "./renderer.js?v=669213efe941";
-import { dueNativeHits } from './native-combat.js?v=669213efe941';
-import { Sound } from "./audio.js?v=669213efe941";
-import { createMainPanel } from "./main-character.js?v=669213efe941";
-import { createTraining } from "./training.js?v=669213efe941";
+} from "./battle.js?v=8fac583645eb";
+import { ART, loadArt, portrait, chestImage, iconSvg } from "./art.js?v=8fac583645eb";
+import { Battlefield, prepareActionTimeline } from "./renderer.js?v=8fac583645eb";
+import { dueNativeHits } from "./native-combat.js?v=8fac583645eb";
+import { Sound } from "./audio.js?v=8fac583645eb";
+import { createMainPanel } from "./main-character.js?v=8fac583645eb";
+import { createTraining } from "./training.js?v=8fac583645eb";
 
 export async function mountGame(root = document) {
   const $ = (q) => root.querySelector(q),
@@ -170,9 +171,23 @@ export async function mountGame(root = document) {
   }
   function setMode(mode) {
     state.mode = mode;
-    if (mode !== 'battle') {
+    sound.setScene(
+      mode === "battle"
+        ? state.stage === 3
+          ? "boss"
+          : "battle"
+        : mode === "result"
+          ? result?.victory
+            ? "victory"
+            : "defeat"
+          : mode === "formation"
+            ? "formation"
+            : null,
+    );
+    if (mode !== "formation") roster.close();
+    if (mode !== "battle") {
       state.countdown = 0;
-      $('#fightBanner').hidden = true;
+      $("#fightBanner").hidden = true;
     }
     $("#extrasMenu").hidden = true;
     $("#more").setAttribute("aria-expanded", "false");
@@ -216,7 +231,8 @@ export async function mountGame(root = document) {
     state.selected = id;
     updateFormation();
     sound.play();
-    if (activeModal === "heroes") showHeroes();
+    if (activeModal === "heroes") showHeroManager();
+    roster.render();
     toast(`${getHero(id).name}已就位`);
   }
   function bench(id) {
@@ -224,10 +240,12 @@ export async function mountGame(root = document) {
     if (!r.ok) return toast(r.reason);
     state.formation = r.formation;
     updateFormation();
-    showHeroes();
+    if (activeModal === "heroes") showHeroManager();
+    roster.render();
     toast("英雄已撤下，可从列表重新上阵");
   }
   function showModal(type, html) {
+    roster.close();
     resetDrag();
     clearTimeout(toastTimer);
     $("#toast").classList.remove("show");
@@ -244,6 +262,8 @@ export async function mountGame(root = document) {
     $("#overlayContent").querySelector("button:not(:disabled)")?.focus();
   }
   function closeModal() {
+    if (activeModal === "pause" && !state.paused && state.mode === "battle")
+      sound.setScene(state.stage === 3 ? "boss" : "battle");
     activeModal = null;
     $("#overlay").hidden = true;
     $("#overlayContent").innerHTML = "";
@@ -306,7 +326,7 @@ export async function mountGame(root = document) {
         }),
     );
   }
-  function showHeroes() {
+  function showHeroManager() {
     const chosen = getHero(state.selected);
     showModal(
       "heroes",
@@ -415,7 +435,7 @@ export async function mountGame(root = document) {
       "help",
       frame(
         "操作说明",
-        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>从前排第一阵位开始，按双方阵位顺序轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部三个技能点击即可指挥释放；空槽保留原画面布局。在「主角技能」中更换出战技能。普通英雄从首次行动起按「技能→普攻→普攻」循环，卡塔琳娜会前移旋转并返回阵位。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–3 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
+        `<div class="help-copy"><b>布阵：</b>拖动英雄到箭头阵位，重叠即换位；点英雄后点空位也可部署。<br><b>战斗：</b>从前排第一阵位开始，按双方阵位顺序轮流行动，点底部技能进行指挥。<br><b>技能：</b>底部三个技能点击后在主角自己的行动位释放，再点同一技能可取消预选；空槽保留原画面布局。在「主角技能」中更换出战技能。普通英雄从首次行动起按「技能→普攻→普攻」循环，卡塔琳娜会前移旋转并返回阵位。<br><b>结算：</b>胜利后选择一个宝箱，领取奖励，再进入下一关。<br><small>1–3 主角技能 · 空格暂停 · Esc 关闭窗口 / 取消选目标<br>游侠、战士、法师选择其一出战。美术与技能资料来自参考包，完整战斗数值为本地 Demo 规则。</small></div><div class="window-footer"><button class="ornate gold" data-close>知道了</button></div>`,
         "help-window",
       ),
     );
@@ -438,10 +458,12 @@ export async function mountGame(root = document) {
     if (state.mode !== "battle") return;
     if (state.paused) {
       state.paused = false;
+      sound.setScene(state.stage === 3 ? "boss" : "battle");
       closeModal();
       return;
     }
     state.paused = true;
+    sound.setScene(null);
     showModal(
       "pause",
       frame(
@@ -452,6 +474,7 @@ export async function mountGame(root = document) {
     );
     $("#resume").onclick = () => {
       state.paused = false;
+      sound.setScene(state.stage === 3 ? "boss" : "battle");
       closeModal();
     };
   }
@@ -526,7 +549,7 @@ export async function mountGame(root = document) {
     const hero = e.target.closest("[data-hero]");
     if (hero) {
       state.selected = hero.dataset.hero;
-      showHeroes();
+      showHeroManager();
       return;
     }
     const slot = e.target.closest("[data-slot]");
@@ -581,6 +604,37 @@ export async function mountGame(root = document) {
     };
   };
   $("#back").onclick = showMap;
+  const roster = createFormationRoster({
+    root,
+    state,
+    save,
+    portraits,
+    signal: controller.signal,
+    select: (id) => {
+      state.selected = id;
+    },
+    bench,
+    deploy,
+    drag: (id, e) => {
+      const p = view.point(e);
+      state.drag = { id, active: true, x: p.x, y: p.y, slot: view.slotAt(p) };
+    },
+    release: (id, e) => {
+      if (id && e) {
+        const p = view.point(e),
+          slot = view.slotAt(p);
+        if (slot !== null && p.x <= 580 && p.x >= 0 && p.y >= 160 && p.y < 470)
+          deploy(id, slot);
+        else toast("已取消移动");
+      }
+      resetDrag();
+    },
+    manage: showHeroManager,
+    notify: toast,
+  });
+  function showHeroes() {
+    roster.isOpen ? roster.close() : roster.open();
+  }
   $("#heroes").onclick = showHeroes;
   $("#arrange").onclick = showArrange;
   $("#assist").onclick = showAssist;
@@ -624,7 +678,7 @@ export async function mountGame(root = document) {
                   u.hp > 0,
               ),
             queued = state.pending?.id === s.id || state.targeting === s.id;
-          return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="skill-name">${s.name}</span><span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
+          return `<button class="skill ${queued ? "queued active" : ""}" data-spell="${s.id}" ${disabled ? "disabled" : ""} title="${s.name}：${s.description}（快捷键 ${i + 1}）" aria-label="${s.name}">${iconSvg(s.icon)}<span class="skill-name">${s.name}</span><span class="cost">${s.badge}</span>${cd ? `<span class="cooldown">${cd}/${s.cooldown + 1}</span>` : ""}${queued ? '<span class="queue-note">待释放</span>' : ""}</button>`;
         })
         .join("") +
       '<span class="skill empty" aria-label="空技能槽"></span>'.repeat(3);
@@ -664,7 +718,7 @@ export async function mountGame(root = document) {
     $("#fightBanner").hidden = false;
     clearTimeout(bannerTimer);
     state.countdown = 3600;
-    $('#fightBanner').textContent = '3';
+    $("#fightBanner").textContent = "3";
     sound.play("spell");
   }
   function cancelTarget() {
@@ -677,7 +731,7 @@ export async function mountGame(root = document) {
     const b = state.battle,
       s = SPELLS.find((s) => s.id === id);
     if (!s) return;
-    if (state.pending) return toast("已有技能等待释放");
+
     if (b.cooldowns[id]) return toast("技能冷却中");
     if (b.energy < s.cost) return toast("能量不足，可先释放产能技能");
     // In the footage, a tap commands the skill without stopping for a second target tap.
@@ -687,7 +741,7 @@ export async function mountGame(root = document) {
     queueSpell(id, target?.id);
   }
   function queueSpell(id, target) {
-    state.pending = { id, target };
+    state.pending = state.pending?.id === id ? null : { id, target };
     state.targeting = null;
     $("#targetHint").hidden = true;
     updateBattle();
@@ -722,6 +776,11 @@ export async function mountGame(root = document) {
         },
       }),
     );
+    const caster = state.battle.units.find((u) => u.id === action.actor);
+    sound.cast(
+      action,
+      getHero(caster?.heroSkillId || caster?.id)?.nativeId || caster?.nativeId,
+    );
     updateBattle();
   }
   function chooseAuto() {
@@ -741,14 +800,53 @@ export async function mountGame(root = document) {
       null
     );
   }
+  function actionForActor(actor) {
+    const b = state.battle;
+    const pending = state.pending;
+    const controlsActor =
+      pending &&
+      (pending.id.startsWith("hero:")
+        ? pending.id.slice(5) === actor.id
+        : actor.side === "ally" && actor.category === "protagonist");
+    const pendingCooling = pending?.id.startsWith("hero:")
+      ? b.heroCooldowns[actor.id]
+      : b.cooldowns[pending?.id];
+    if (controlsActor && !actor.silence && !actor.stun && !pendingCooling) {
+      const target =
+        living(b, "enemy").find((u) => u.id === pending.target) ||
+        living(b, "enemy").sort(
+          (a, c) => (a.slot % 3) - (c.slot % 3) || a.slot - c.slot,
+        )[0];
+      const action = command(pending.id, target?.id);
+      if (!action.error) {
+        state.pending = null;
+        return action;
+      }
+      toast(action.error);
+    }
+    if (
+      state.auto &&
+      actor.side === "ally" &&
+      actor.category === "protagonist"
+    ) {
+      const id = chooseAuto();
+      if (id) {
+        const action = command(id, living(b, "enemy")[0]?.id);
+        if (!action.error) return action;
+      }
+    }
+    return basicAction(b, actor);
+  }
   function tickBattle(dt) {
     const b = state.battle;
     if (!b || state.paused || activeModal || state.targeting) return;
     if (state.countdown > 0) {
       state.countdown = Math.max(0, state.countdown - dt);
-      $('#fightBanner').textContent = state.countdown > 600
-        ? String(Math.ceil((state.countdown - 600) / 1000)) : 'FIGHT!';
-      $('#fightBanner').hidden = state.countdown === 0;
+      $("#fightBanner").textContent =
+        state.countdown > 600
+          ? String(Math.ceil((state.countdown - 600) / 1000))
+          : "FIGHT!";
+      $("#fightBanner").hidden = state.countdown === 0;
       return;
     }
     if (state.anim) {
@@ -760,13 +858,17 @@ export async function mountGame(root = document) {
         applyAction(b, a.action, a.appliedHits, due, due === total);
         for (const h of a.action.targets.slice(a.appliedHits, due)) {
           view.float(
-            h.shield
-              ? "护盾"
-              : h.reflect
-                ? "反伤"
-                : `${h.heal ? "+" : "−"}${h.amount}`,
+            h.blessingBlock
+              ? "格挡提升"
+              : h.shield
+                ? "护盾"
+                : h.reflect
+                  ? "反伤"
+                  : `${h.blocked ? "格挡 " : h.critical ? "暴击 " : ""}${h.heal ? "+" : "−"}${h.amount}`,
             h.id,
-            h.heal || h.shield || h.reflect ? "#88ff49" : "#ff743b",
+            h.heal || h.shield || h.reflect || h.blessingBlock
+              ? "#88ff49"
+              : "#ff743b",
           );
           if (h.status)
             view.float(
@@ -777,7 +879,7 @@ export async function mountGame(root = document) {
         }
         a.appliedHits = due;
         a.applied = due === total;
-        sound.play(a.action.multi ? "hit" : "spell");
+        sound.impact(a.action);
         updateBattle();
       }
       if (a.elapsed >= a.duration) {
@@ -793,31 +895,6 @@ export async function mountGame(root = document) {
       finishBattle();
       return;
     }
-    if (state.pending) {
-      const pending = state.pending;
-      state.pending = null;
-      const a = command(pending.id, pending.target);
-      if (a.error) {
-        toast(a.error);
-        updateBattle();
-      } else {
-        launch(a);
-        return;
-      }
-    }
-    if (state.auto) {
-      const id = chooseAuto();
-      if (id) {
-        const a = command(
-          id,
-          living(b, "enemy").sort((a, c) => a.hp - c.hp)[0]?.id,
-        );
-        if (!a.error) {
-          launch(a);
-          return;
-        }
-      }
-    }
     if (!b.queue.some((id) => b.units.find((u) => u.id === id)?.hp > 0)) {
       beginNextRound(b);
       updateBattle();
@@ -827,7 +904,7 @@ export async function mountGame(root = document) {
     }
     const actor = nextActor(b);
     if (actor) {
-      const action = basicAction(b, actor);
+      const action = actionForActor(actor);
       if (action) launch(action);
     } else if (b.outcome) finishBattle();
   }
@@ -847,23 +924,12 @@ export async function mountGame(root = document) {
       if (state.anim && !state.anim.applied)
         applyAction(b, state.anim.action, state.anim.appliedHits || 0);
       state.anim = null;
-      state.pending = null;
       cancelTarget();
       let steps = 0;
       while (!b.outcome && steps++ < 1500) {
-        if (state.auto) {
-          const id = chooseAuto();
-          if (id) {
-            const a = command(id, living(b, "enemy")[0]?.id);
-            if (!a.error) {
-              applyAction(b, a);
-              continue;
-            }
-          }
-        }
         const actor = nextActor(b);
         if (actor) {
-          const a = basicAction(b, actor);
+          const a = actionForActor(actor);
           if (a) applyAction(b, a);
         } else if (!b.outcome) beginNextRound(b);
       }
@@ -1008,7 +1074,7 @@ export async function mountGame(root = document) {
   };
   $("#heroSkillBar").onclick = (e) => {
     const button = e.target.closest("[data-hero-skill]");
-    if (!button || button.disabled || state.pending) return;
+    if (!button || button.disabled) return;
     queueSpell("hero:" + button.dataset.heroSkill);
   };
   $("#skillBar").onclick = (e) => {
@@ -1052,7 +1118,10 @@ export async function mountGame(root = document) {
       }
       return;
     }
-    if (e.key === "Escape") cancelTarget();
+    if (e.key === "Escape") {
+      roster.close();
+      cancelTarget();
+    }
     if (state.mode === "battle") {
       if (e.code === "Space") {
         e.preventDefault();
@@ -1073,7 +1142,23 @@ export async function mountGame(root = document) {
     }
   });
   listen(document, "visibilitychange", () => {
+    if (!document.hidden && !state.paused) {
+      sound.setScene(
+        state.mode === "formation"
+          ? "formation"
+          : state.mode === "battle"
+            ? state.stage === 3
+              ? "boss"
+              : "battle"
+            : state.mode === "result"
+              ? result?.victory
+                ? "victory"
+                : "defeat"
+              : null,
+      );
+    }
     if (document.hidden) {
+      sound.setScene(null);
       resetDrag();
       if (state.mode === "battle" && !state.paused && !activeModal)
         togglePause();
@@ -1113,6 +1198,7 @@ export async function mountGame(root = document) {
       clearTimeout(bannerTimer);
       controller.abort();
       sound.destroy();
+      roster.destroy();
       root.querySelectorAll("button").forEach((b) => (b.onclick = null));
       closeModal();
     },

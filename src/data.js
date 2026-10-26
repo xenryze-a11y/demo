@@ -1,5 +1,5 @@
-import { APK_HERO_CONFIG } from './apk-config.js?v=669213efe941';
-import { nativeSkillConfig } from './native-combat.js?v=669213efe941';
+import { APK_HERO_CONFIG } from './apk-config.js?v=8fac583645eb';
+import { nativeSkillConfig } from './native-combat.js?v=8fac583645eb';
 export const HEROES = [
   {
     id: "sun",
@@ -145,6 +145,7 @@ export const isProtagonist = (id) =>
 export const MAIN_CLASSES = ["vanguard", "ranger", "mage"];
 export const ENEMIES = {
   wolfking: {
+    nativeId: 8012,
     name: "狂暴狼王",
     kind: "boss",
     sprite: 7,
@@ -157,6 +158,7 @@ export const ENEMIES = {
     skill: "裂空爪击",
   },
   wolf: {
+    nativeId: 6010,
     name: "暗影狼",
     kind: "wolf",
     sprite: 6,
@@ -168,6 +170,7 @@ export const ENEMIES = {
     level: 2,
   },
   wind: {
+    nativeId: 2018,
     heroSkillId: "wind",
     basicBehavior: "attack",
     name: "风之女",
@@ -181,6 +184,7 @@ export const ENEMIES = {
     level: 5,
   },
   knight: {
+    nativeId: 8012,
     name: "幽影统领",
     kind: "sentinel",
     sprite: 7,
@@ -506,7 +510,7 @@ export const HERO_SKILLS = {
     id: "blessing",
     name: "女神祝福",
     animation: "skill1",
-    description: "为自身赋予两回合护盾",
+    description: "提高自身格挡几率75%，持续两回合",
   },
   blade: {
     id: "judgment",
