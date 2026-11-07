@@ -1,0 +1,1 @@
+<resources><string name="access_description">仅在你开启“手机操作”并发送任务后读取当前页面、截图和执行点击。页面内容会发给你配置的模型服务商。不会自动解锁或填写密码。通过悬浮停止键或通知可终止任务；关闭此服务即可撤销权限。</string></resources>

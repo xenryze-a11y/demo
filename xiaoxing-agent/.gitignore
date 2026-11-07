@@ -1,0 +1,9 @@
+build/
+dist/
+*.jks
+*.keystore
+.env
+.env.*
+local.properties
+__pycache__/
+*.pyc
