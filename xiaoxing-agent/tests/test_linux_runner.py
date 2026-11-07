@@ -12,11 +12,11 @@ with tempfile.TemporaryDirectory() as directory:
     fake=Path(directory)/'proot-distro'
     fake.write_text('#!/bin/sh\nexec /bin/bash -lc "$6"\n')
     fake.chmod(0o700)
-    env=dict(os.environ,PATH=directory+':'+os.environ['PATH'])
+    env=dict(os.environ,PATH=directory+':'+os.environ['PATH'],XIAOXING_CACHE_DIR=directory+'/cache')
     def run(command,seconds=3):
         token=str(uuid.uuid4())
         result=subprocess.run([sys.executable,str(runner),token,str(seconds),command],env=env,capture_output=True,text=True,timeout=seconds+8)
-        assert not (Path.home()/'.cache/xiaoxing-agent'/f'{token}.pid').exists()
+        assert not (Path(directory)/'cache'/f'{token}.pid').exists()
         return result
     result=run("printf 'hello linux'; printf 'stderr' >&2")
     assert result.returncode==0 and 'hello linuxstderr' in result.stdout

@@ -1,60 +1,34 @@
-# 小星 Agent：Codex 交接
+# 小星 Agent 0.4.0 交接
 
-更新：2026-11-08。用户使用荣耀 80，主要在手机操作，没有常用电脑。先阅读本文件、README.md、VALIDATION.md，再检查真实源码。
+更新：2026-11-08（北京时间）。用户用荣耀 80，优先手机操作。源码在 `xenryze-a11y/demo` 的 `xiaoxing-agent-handoff` 基础上继续开发；本轮工作分支 `codex/xiaoxing-connectivity-files`。
 
-## 用户要实现的目标
+## 本轮修复
 
-1. 使用自有模型 API 写代码、制作游戏，运行、测试、修改，保留工作区。
-2. 独立图形桌面或虚拟手机，让 AI 在里面使用 QQ、浏览器、游戏，不占用真实荣耀手机的屏幕。
-3. 黑金 UI；清楚说明每个开关用途；响应等待计时；具体错误位置与修复步骤。
-4. 用户不熟悉终端，尽量减少手工步骤；不能把准备了按钮、下载了工具或模型自述当成安装成功。
+- 原版只有图片选择器，无通用附件，也无网页工具。新增 ACTION_OPEN_DOCUMENT 文件导入、实际大小、64 MiB 上限、8 附件、文本分页、APK/ZIP 检查/提取/打包、原始字节导出。
+- WebTools 匿名 HTTPS 搜索/网页读取，来源与错误可见；独立于 DeepSeek API。公网校验、逐次重定向检查、读超时/容量、取消；不携带 API Key。
+- LoopbackTransfer + LinuxFiles 在 App、Debian、Termux 原生之间双向传文件；一次性随机令牌、本机监听、固定长度、容量与新目标检查、中断清理。
+- APK 内置 self-source.zip；SourceBundle 提取完整可编辑源码，SELF-DEVELOPMENT 给出修改→传输→Termux 编译→取回→导出的流程。
+- 新增 Termux 原生命令、手机 Android 构建工具初始化、纯 Python ZIP 对齐。官方 Termux 仓库当日已核对 aapt2 / d8 / apksigner / openjdk-21 可用；Platform 35 下载以 Google 元数据 SHA-1 校验。手机端安装与构建未真机验证。
+- SessionStore 私有持久会话；中断保留完整工具组；停止后未执行工具明确标记；上下文压缩保留当前指令和最近完整工具组，不再整段清空。
+- 独立 Xfce 桌面：单独持久 Termux 终端运行 Python 控制端，Xvnc/noVNC 仅环回监听，随机控制令牌、VNC 密码，截图后动作、动作后重新截图。中文通过 xclip 粘贴（普通窗口 ctrl+v、终端 ctrl+shift+v）。App 查看器无 Java 桥，禁止 file/content 访问。
 
-## 当前真实状态
+## 验收边界
 
-源码版本为 0.3.1-test，versionCode 4。本次交接没有实现新版图形桌面或安卓虚拟机。releases/ 内为现有已构建的 0.3.1 APK 和 Linux 修复安装脚本。
+见 VALIDATION。真实联网与开发机 Xvnc/Xfce/noVNC、GUI 操作已实测；Android 资源/Java/DEX/签名构建需以本轮最终记录为准。API 使用模拟服务验证，没有用户真实 DeepSeek Key 的付费调用。没有荣耀 80 原生 UI、Termux RUN_COMMAND、安装器、后台保活的实测证据。
 
-- 本机操作：PhoneService 无障碍服务，读取真实屏幕、截图、点击、滑动、输入。不是虚拟手机。
-- Linux：LinuxBridge 通过 Termux RUN_COMMAND 调用 PRoot-Distro 的 xiaoxing Debian 容器。独立工作目录 /root/xiaoxing-workspace。
-- 系统命令：Android 普通 App 权限下的 sh，10 秒限制；不能当作 Debian 终端。
-- App 文件工具有另一个应用内部工作区，与 Linux 工作区不同。
-- 有单文件 HTML WebView 预览和内置游戏测试场；这也不是完整虚拟电脑。
-- 有 API 诊断、工具轮数/任务时限、停止、计时；没有全天候 QQ 消息监听或自主群聊。
-- 模型密钥由用户在手机填写，Android Keystore 加密保存。用户目前截图显示 LongCat；另有上下文说已准备 DeepSeek API，不应擅自清空或更换配置。
+手机上的 Debian 初始安装仍沿用 0.3.1 修复，不应声称已经替用户装好。独立桌面需要用户在手机安装一次软件并启动单独终端；开发环境的桌面成功不等于手机已安装。
 
-## 安装失败的证据与修复情况
+安卓虚拟手机尚未接入。PRoot Linux 桌面不是 Android 客体或 Windows VM。需用户提供已有云手机控制接口或电脑模拟器运行端再接，未购买服务。QQ 尚未安装/登录，无持续消息监听或自主群聊。不要把截图接口、SDK 或按钮当成已运行虚拟手机。
 
-用户日志：Termux Python、proot、proot-distro 5.10.3 已装好；下载 debian:bookworm 的 Docker Hub 匿名认证连接反复 SSL UNEXPECTED_EOF_WHILE_READING，最终失败。
-App 工具返回 Linux 退出码 1，container 'xiaoxing' is not installed，说明桥接能调用，但容器未安装。
+## 签名
 
-0.3.1 的 assets/setup-linux.sh 改用 mirror.gcr.io/library/debian:bookworm；会保留已有容器、分阶段报错、检查 Python/Node/Git，成功才显示完成。曾在开发环境下载验证 Google 缓存 ARM64 镜像层，但尚无用户手机安装成功证据。不能声称已替用户装好。
+仓库内没有原私钥。原证书 SHA-256：805a55311d7d8462f84a2d704fdc4b3183a32ca077e770ebda059db11a1d42d0。
 
-## 下一步建议（尚未实现）
+本轮可交付独立包名 preview 测试 APK 和原包名 unsigned APK；不冒充可覆盖升级版。正式 release 模式要求提供原私钥并核对证书，不会自动换签名。用户以前保存过 `Xiaoxing-Agent-private-signing-backup.zip`，需要覆盖安装时请其私下提供；不要提交公开仓库。
 
-先实测/修复 Linux 容器启动，再实现独立 Linux 图形桌面：Debian + Xfce + TigerVNC + noVNC/websockify。这是共享 Android 内核的 PRoot Linux 桌面，不是 Windows，也不是 Android 客体系统。
+## 后续优先级
 
-必须解决：现有 LinuxCommands.RUNNER 每次命令结束会 kill 整个进程组，PRoot 本身也可能清理子进程。不能简单 linux_exec 启动后台 VNC/QQ 后就报告运行中。桌面需独立、可停止、可检测的长运行 Termux 服务会话；启动失败要回显日志。
-
-桌面建议只监听本机环回接口，设置随机访问密码；App 内查看器保持 file/content access 关闭，不给网页 Java 桥。若开放 localhost HTTP，network-security-config 仅放行所需本机地址，API 仍强制 HTTPS。
-
-AI 操作独立桌面需独立截图、点击、输入工具，明确区分本机屏幕。截图后再操作，动作后验证，不能宣称实时动作游戏稳定可玩。
-
-QQ 优先核实腾讯官方 Linux ARM64 软件包。已发现旧的 /linuxqq/download.html 仍指向 2020 旧配置；新版 https://im.qq.com/linuxqq/index.shtml 使用 //cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js，需重新读取官方当前下载地址和架构，不要拿第三方旧版当最新。尚未下载/安装/启动 QQ；登录由用户手动完成。
-
-独立 Android 虚拟手机是另一需求，不能把 PRoot 或 Linux 桌面冒充成安卓模拟器。手机本地模拟器/云手机需要另行核实兼容、费用和可控制接口。不能擅自购买服务。
-
-群友截图是 TRAE「云端」工作区的 Android SDK 大小清单（build-tools、cmdline-tools、platforms、platform-tools 等），没有 emulator/system-images 的证据，不能据此认定群友已经有可玩 QQ 的安卓虚拟机。
-
-## 构建与验证
-
-build.sh 使用 Android SDK 35 的 android.jar、build-tools 和 JDK；无需 Gradle。README 有构建命令。源码中 tests/ 有 JVM、Python、游戏 JS 检查。
-
-已有验证：0.3.1 可编译、打包、签名；纯代码测试和模拟 Termux 测试见 VALIDATION。未在荣耀 80 或 Android 模拟器上完整实测；上一环境无 /dev/kvm，模拟器启动失败，不能声称原生 UI 测试通过。
-
-本次迁移尝试补开发依赖，但尚未完成；自动审批服务曾因额度问题拒绝执行一次下载命令，不是手机本身问题。恢复工作后先检查当前环境，不假设 /tmp 的工具链仍存在。
-
-## 签名与保密
-
-公开仓库不包含 build/development.jks、私有签名备份、模型 Key、编译缓存。旧安装包签名证书 SHA256：805a55311d7d8462f84a2d704fdc4b3183a32ca077e770ebda059db11a1d42d0。
-用户此前单独保存过 Xiaoxing-Agent-private-signing-backup.zip。覆盖升级需同一签名；不要悄悄换签名，也不要建议先卸载以免丢配置和工作区。需要签名备份时让用户通过私有文件提供，不能提交到公开仓库。
-
-验收时分别报告：源码已实现、构建已通过、开发环境已验证、用户手机已验证。不要合并成一句“全装好了”。
+1. 荣耀手机安装新版、真实 DeepSeek 工具调用及大小文件导入/导出验证。
+2. Termux 原生构建工具与 App 文件传输真机验证，原私钥签名后覆盖升级。
+3. 手机独立桌面安装、启动、中文输入及后台恢复验证；保留失败日志。
+4. 用户选定运行端后接入独立 Android 虚拟手机。QQ 等安装和账号操作需要用户明确目标。

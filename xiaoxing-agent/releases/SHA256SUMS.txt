@@ -1,0 +1,4 @@
+866b020ddb4f12d0175bcc2fe9875bad1fb1a0c83fe5a84a47cb813107a499e1  Xiaoxing-Agent-0.4.0-preview.apk
+a530b2b8edd6bba7fff68abe839200ee8610364e48e7674796f0876fce595dd5  Xiaoxing-Agent-0.4.0-unsigned.apk
+a581725df558f7a91b0e9e8af98de31848a852c5cac6b9a1df342eb4dceb60dc  Xiaoxing-Agent-0.4.0-source.zip
+6ec7505d7d322b0e49665a9ed93cc3f4c20a4483ad6d5eddbe806b1851f8f8f0  Xiaoxing-0.4.0-desktop-development-proof.png

@@ -19,9 +19,10 @@ final class LinuxCommands {
     static final String RUNNER=
         "import os,sys,subprocess,signal,time,pathlib,threading\n"+
         "token,limit,command=sys.argv[1],int(sys.argv[2]),sys.argv[3]\n"+
-        "cache=pathlib.Path.home()/'.cache'/'xiaoxing-agent';cache.mkdir(parents=True,exist_ok=True)\n"+
+        "cache=pathlib.Path(os.environ.get('XIAOXING_CACHE_DIR',str(pathlib.Path.home()/'.cache'/'xiaoxing-agent')));cache.mkdir(parents=True,exist_ok=True)\n"+
         "pidfile=cache/(token+'.pid');buf=bytearray();total=[0]\n"+
-        "p=subprocess.Popen(['proot-distro','login','xiaoxing','--','/bin/bash','-lc',command],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,start_new_session=True)\n"+
+        "argv=['bash','-lc',command] if len(sys.argv)>4 and sys.argv[4]=='termux' else ['proot-distro','login','xiaoxing','--','/bin/bash','-lc',command]\n"+
+        "p=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,start_new_session=True)\n"+
         "pidfile.write_text(str(p.pid))\n"+
         "def read():\n"+
         " while True:\n"+

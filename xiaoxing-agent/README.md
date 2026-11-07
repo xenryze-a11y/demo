@@ -1,108 +1,88 @@
-# 小星 Agent 0.3.1 · 黑金工作台测试版
+# 小星 Agent 0.4.0 测试版
 
-0.3.1 修复：改用 Google 管理的 Docker Hub 镜像缓存入口下载 Debian；安装失败显示中文阶段，不显示成功；已有可用容器跳过安装，无法启动的旧容器保留数据。Linux 非零退出码改为明确的错误，缺少容器时提示还缺哪一步。
+本轮重点补齐 DeepSeek 工具联网、通用附件、持续工作，以及把本应用继续交给小星修改的链路。独立 Linux 桌面已接入；安卓虚拟手机还需要云手机或电脑模拟器的运行端。
 
-两项目标同时保留：① Linux 写代码、做游戏和持续调试；② 独立的虚拟手机/电脑用于游戏和 QQ。第二项仍待单独接入，当前修复只处理第一项的安装失败。
+## 下载与安装
 
-原有功能包含原生黑金界面、响应计时、Termux / PRoot Debian 命令连接、HTML 游戏预览与日志、截图后的坐标点击和滑动。保持原包名和签名，可直接覆盖 0.1 / 0.2 安装，保留模型设置、密钥和应用工作区。
+`releases/Xiaoxing-Agent-0.4.0-preview.apk` 是可与旧版并存的**独立测试版**（包名 `app.xen.xiaoxing.preview`），需要单独填写模型配置和授权。它不会迁移旧版的私有文件、会话、密钥。请保留原来的小星。
 
-代码已编译并签名。手机系统授权、Termux 命令回传、第三方游戏和 QQ/B站操作仍需在荣耀 80 上验证。
+本轮未取得原签名私钥，因此没有提供可直接覆盖 0.3.1 的升级 APK。`0.4.0-unsigned.apk` 已编译，原签名持有人可签名后升级。正式构建会核对旧版证书，拒绝用另一把密钥冒充覆盖更新。
 
-## PRoot 是什么
+## 联网
 
-PRoot 通过用户空间系统调用转换提供类似 chroot 的 Linux 文件环境，不需要 Root。它共享手机内核，不是另一个 Android 系统，也不是强隔离的虚拟机。
+- 对话下方默认开启「联网搜索 / 网页读取」，模型可调用 `web_search` 和 `web_read`。
+- 搜索使用 Bing 公开 RSS；网页工具实际请求 HTTPS 公网，返回来源、HTTP 状态、抓取时间和正文。无需 DeepSeek 另开内置联网权限。
+- 不向搜索服务或网页发送模型 API Key。搜索词会交给搜索服务，读取后的摘要/正文会交给用户配置的模型。取消联网可关闭这些工具。
+- 不执行网页 JavaScript，不代登录、不绕过验证码；受限页面会明确报错。PDF/图片下载不冒充网页正文。
+- 「能力 → 检测真实网页联网」可以不调用模型单独测试搜索和网页读取。
 
-本版使用 Termux 作为执行宿主，在其中安装名为 xiaoxing 的 Debian 容器。小星通过 Termux 官方 RUN_COMMAND 接口发命令并取回输出。APK 没有捆绑整个 Linux 根文件系统，也不能远程静默安装到手机。第一次需要用户安装 Termux、运行初始化指令并授权；之后可以在小星里调用 Linux。
+试用：`搜索 DeepSeek 当前官方 API 文档，打开原文核实，并附来源网址。`
 
-Linux 工作目录为 /root/xiaoxing-workspace；应用文件工具工作区在小星私有目录，两者不同。初始化没有安装 Android SDK、浏览器桌面或 Android 虚拟机，不能承诺手机上构建任意 APK。
+## 附件与文件容量
 
-## 手机上怎样安装
+点「＋ 附件 → 文件 / 源码 / ZIP / APK」。每轮最多附加 8 个文件，**单个最多 64 MiB（67,108,864 字节）**。文件服务未报告容量时，会边复制边统计实际字节，超过上限即停止并清理未完成文件；导入前要求至少 72 MiB 可用空间。
 
-1. 覆盖安装 Xiaoxing-Agent-0.3.1-test.apk，不要先卸载。
-2. 打开小星的 Linux 面板，点“① 安装 / 打开 Termux”。官方 F-Droid：https://f-droid.org/packages/com.termux/ 。安装后先打开 Termux，等基础环境初始化完成。
-3. 回到小星，点“② 复制初始化指令”。去 Termux 长按 → 粘贴 → 回车，等待最后出现“小星开发环境安装完成 / Setup complete”。该指令在 APK 内，下载的软件来自 Termux / Debian 软件源，基础镜像从 mirror.gcr.io 的 Debian 官方镜像缓存获取；指令会允许已授权外部 App 调用 Termux。
-4. 该过程安装 PRoot-Distro、Python、Debian，以及 Debian 内的 Python3、Node/npm、Git、curl。请预留约 2 GB 空间，实际大小和耗时取决于软件版本与网络。下载失败时查看 Termux 报错，不能跳过后当成完成。
-5. 回小星，点“③ 授予运行命令权限”，允许小星在 Termux 环境运行命令。再点“④ 检测 Python / Node / Git”。看到 Linux 退出码 0 和各工具版本才是检测命令完成。
-6. 对话里勾选 Linux，试用下面的指令：
+文件保存在小星私有工作区，导入后显示路径和实际大小。发送消息只传附件路径；模型用 `file_info` 检查大小，再读取所需内容。64 MiB 是文件导入上限，不代表模型能一次读入这么多内容。
 
-```
-在 Linux 创建一个 Python 文件，计算 1 到 100 的和，运行后报告真实输出和退出码。
-```
+- UTF-8 文本 / 源码：`read_file` 每页最多约 10,000 字符，按 `next_offset` 继续。文本写入单文件仍限制 128 KiB。
+- APK / ZIP：`inspect_archive` 分页查看目录或其中的文本；`extract_archive` 提取到新目录；`pack_directory` 打包工程。提取限制路径、条目数与展开容量。
+- PDF / Office / 其他二进制：可保存、导出和传进 Linux，但需对应解析软件；导入成功不等于解析成功。
+- 「文件」显示字节大小，支持附加、文本预览、归档目录和**原始二进制导出**。不把 APK 重新编码成文本。
+- App 文件箱、Debian `/root/xiaoxing-workspace`、Termux 原生 `$HOME/xiaoxing-workspace` 是三个工作区。`linux_push` / `linux_pull` 双向传文件；`native_termux=true` 选择 Termux 原生工作区。
 
-初始化脚本也放在 assets/setup-linux.sh。不需要在 Linux 中再填写模型 API Key，模型仍由小星 App 调用。
+## 以后让小星继续修改自己
 
-### 检测失败时
+0.4.0 的 APK 包含 `assets/self-source.zip`，里面是可编辑源码、构建脚本和交接说明。点「能力 → 提取本应用源码」，或让模型调用 `project_source`，然后阅读 [SELF-DEVELOPMENT.md](SELF-DEVELOPMENT.md)。
 
-- 未安装 Termux：先完成步骤 2。
-- 权限拒绝：小星需要 com.termux.permission.RUN_COMMAND，同时 Termux 的 ~/.termux/termux.properties 需要 allow-external-apps=true，初始化脚本会设置后者。
-- 找不到 Python / proot-distro：初始化未完成，查看 Termux 安装日志。
-- 找不到 xiaoxing 容器：Debian 下载/安装未完成。
-- 等不到回传：查看 Termux 通知、权限和系统后台限制。系统可能在后台终止进程。
-- ptrace / PRoot 被系统拒绝：设备策略可能不兼容，本版不会绕过系统安全策略。
+小星调用的是你自己配置的 API，修改代码不依赖 Codex 的额度，仍需要模型服务商有可用额度。工程可以保留、修改、传入 Termux 编译，再把新 APK 取回并导出。
 
-## 手机操作与游戏
+要在荣耀手机上构建本应用，先在 Linux 面板复制「安装 APK 构建工具」指令，到 Termux 运行一次。它从 Termux 官方源安装原生 aapt2、JDK、d8、apksigner，并校验下载的 Google Android Platform 35。手机安装与实际编译尚待真机验证。不要在 Debian 里运行这些 Android 原生二进制。
 
-手机模式使用用户主动启用的无障碍服务。提供页面节点读取、截图、节点点击、文字输入、滚动、返回、桌面、启动应用，以及 0~1000 归一化坐标的点击和滑动。坐标手势前需在 60 秒内获取过页面或截图，单次滑动最多 2 秒。
+**签名私钥不包含在 APK 或源码里。** 可并存测试版使用自己的签名；覆盖原小星需要之前私下保存的原签名备份，且应由持有人执行签名。0.3.1 和任意第三方 APK 通常不包含完整工程，不能保证仅靠反编译还原。
 
-这为 AI 逐步操作游戏和页面提供工具。模型延迟、识别错误、受保护页面和系统限制都会影响效果，不能保证即时动作/竞技游戏能玩好。
+试用：`提取你自己的源码，先读 SELF-DEVELOPMENT.md，检查联网工具实现，修改后编译独立测试 APK；报告真实构建结果，并取回 APK 供我导出。`
 
-在“能力”面板可打开“本地游戏测试场”。也可开启手机模式后对 AI 说：
+## 会话与中断续做
 
-```
-打开本地星核训练场，读取页面或截图，按 01、02、03 顺序点击。
-每次点击后检查状态，最后确认页面是否显示“验证完成”。
-```
+会话和界面记录存于应用私有目录，应用重开后恢复。完整工具轮次会保存；API 限额、停止或时限中断后，已经写入的文件保留，模型能看到已完成和未执行的工具记录。
 
-自带测试场仅用于基本交互，不代表第三方游戏已验证。
+上下文过长时保留当前用户指令和最近完整工具轮次，较早内容按需从工作区重新读取。不会把半组 tool_calls 拼进下一次请求。历史图片不持久保存，需要时重新上传或截图。突然被系统杀死的运行中轮次不保证恢复，可先检查文件和实际环境。
 
-### HTML 游戏运行与调试
+任务默认 24 轮 / 10 分钟，可调整到 64 轮 / 30 分钟。它还不是无限持续运行的消息机器人。新建会话会清除上下文并保留工作区；卸载会删除应用私有数据，请先导出工程。
 
-AI 可以 write_file 创建单文件 HTML，再用 preview_html 在手机 WebView 运行。preview_status 返回预览真实记录的加载状态、JavaScript 控制台消息和加载错误。手机模式可截图、读取和点击页面。
+## Linux 开发环境
 
-此 WebView 没有 JavaScript→Java 接口，不允许文件系统或 Content Provider 访问。本版建议使用单文件 HTML，不支持相对本地素材。控制台没有报错不等于游戏功能正确，还需操作验证。
+Linux 面板原有流程保留：安装 Termux → 复制基础初始化指令到 Termux → 授予运行命令权限 → 检测 Python / Node / Git。
 
-## QQ / B站机器人怎么实现
+基础脚本使用 `mirror.gcr.io/library/debian:bookworm` 安装名为 `xiaoxing` 的 PRoot-Distro 容器，保留已有容器和工作区，失败不会显示安装完成。PRoot 共享手机内核和 Termux 权限，并非强隔离虚拟机。基础环境建议预留约 2 GiB，实际随软件和缓存变化。
 
-常见两类做法：
+`linux_exec` 在 Debian 执行；`termux_exec` 在 Termux 原生环境执行。两者单命令 5~120 秒，停止/超时会请求终止命令进程组，不用于留下后台守护进程。
 
-- 消息机器人：平台事件/Webhook 或消息桥收到消息，调用模型，再通过平台接口回复。长期运行需要消息连接和服务进程，不能只靠安装 PRoot。
-- 页面自动化：模型看截图或页面，操控手机 App / 浏览器。普通账号仍需用户手动登录，并按平台权限和规则使用。
+## 独立 Linux 桌面
 
-本版只提供第二类的基础手机工具，没有 QQ/B站专用接入、后台群消息监听或长期自动发言服务。不会自动创建账号、登录或自行去评论区发言；发送消息/评论应由用户明确指定操作。
+Linux 面板新增：
 
-## 计时与持续运行
+1. 「安装桌面软件」：复制指令到 Termux，安装 Xfce、TigerVNC、noVNC、xdotool、xclip 等。建议额外预留 2 GiB。
+2. 「启动独立桌面」：开启单独的 Termux 终端会话，保持该会话运行。此时只报告已请求启动。
+3. 「检测独立桌面」：以实际 Xvnc、Xfce、noVNC 进程状态判断是否就绪；失败请查看 Termux 原始日志。
+4. 「打开独立桌面」：在应用内查看 noVNC。服务器仅监听 `127.0.0.1`，控制 API 使用随机令牌，VNC 使用独立随机密码。
+5. 回到对话勾选「独立桌面操作」。须配置并测试可用的视觉模型。提供 `desktop_status`、`desktop_screenshot`、`desktop_action`；每次动作前要截图，动作后再截图验证。
+6. 「停止独立桌面」单独结束桌面会话。停止 AI 任务停止后续工具调用；桌面可继续保持运行，仍受手机后台限制。
 
-- 上方显示本轮响应等待秒数、任务总时长；模型回复下方显示接口返回的模型标识与响应耗时。
-- 计时包括网络和模型推理，不是服务商内部独立的纯思考时间。没有伪造思维链。
-- 接口提供 usage 时显示任务累计 Token，不推算价格。
-- 默认每次任务最多 24 轮、10 分钟；设置可调整到 4~64 轮、1~30 分钟。不是无限挂机。
-- Linux 单命令限制 5~120 秒。超时或停止会请求终止当前进程组；系统拒绝服务调用或终止宿主时，无法保证即时停止回传。
-- 前台通知、对话发送位置的停止按钮、手机悬浮停止按钮都可停止。
-- Linux 命令结束会清理其进程组，不支持通过该工具留下永久后台服务器。持续服务需要单独设计。
+中文输入通过独立桌面剪贴板粘贴；普通应用用 `ctrl+v`，终端用 `ctrl+shift+v`。开发环境已实际验证 Xfce/noVNC、截图、点击、中英文输入、按键、结果回读和关闭；这不等于荣耀 80 已完成安装或验证。
 
-## 模型与数据
+桌面可以安装支持相应 CPU 架构的 Linux 软件。当前没有预装 QQ，没有登录账号，也没有群消息监听或自主发言。普通 Android QQ / 原生手游不能直接在 PRoot 桌面运行。独立安卓虚拟手机须另接云手机或电脑模拟器；尚未接入或购买服务。
 
-保留自定义接口、文字和视觉模型分别配置、连接测试、详细错误和复制诊断。新增 DeepSeek Flash 预设、思考开关适配和 reasoning_content 回传；没有用用户真实 DeepSeek Key 做付费调用验证。
-
-切换平台预设会清空 API Key，请填写对应平台的密钥。免费额度与账号资格需在服务商确认，App 不提供内置免费账号。密钥通过 Android Keystore 加密保存。
-
-工作区文件、模型配置和密钥保留。会话目前仅在应用进程内；任务图片完成后会从历史上下文移除。卸载会删除应用私有数据，请先导出文件。
+「手机」开关仍是用户手动开启的无障碍服务，会操作当前真实手机屏幕；不要与「独立桌面操作」混淆。
 
 ## 开发构建
 
-需要 JDK 17、Android SDK Platform 35、Build Tools 35.0.0：
+JDK 17+、Android Platform 35、Build Tools 35.0.0，或已初始化的 Termux 原生构建工具：
 
-```bash
-ANDROID_JAR=/your/android-sdk/platforms/android-35/android.jar \
-BUILD_TOOLS=/your/android-sdk/build-tools/35.0.0 bash build.sh
+```sh
+ANDROID_JAR=/path/android.jar BUILD_TOOLS=/path/build-tools bash build.sh
+# 默认只生成 unsigned，不生成替换旧签名的密钥。
+BUILD_VARIANT=preview ANDROID_JAR=/path/android.jar BUILD_TOOLS=/path/build-tools bash build.sh
 ```
 
-生成 dist/Xiaoxing-Agent-0.3.1-test.apk。源代码包不包含签名私钥、SDK 或 API Key。自行重建如使用新签名，不能直接覆盖本次 APK。
-
-验证记录见 VALIDATION.md。代码检查、模拟服务和脚本测试不能视为荣耀 80 真机通过。
-
-官方参考：
-- https://github.com/termux/proot-distro
-- https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent
-- https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/
-- https://developer.android.com/reference/android/accessibilityservice/AccessibilityService
+构建自动打包源码，排除密钥、缓存、旧 APK 和发布包。没有 native zipalign 时使用本工程的 Python 对齐工具；APK 不含 native .so。正式签名方法见 SELF-DEVELOPMENT.md。测试与未验证项见 [VALIDATION.md](VALIDATION.md)。
