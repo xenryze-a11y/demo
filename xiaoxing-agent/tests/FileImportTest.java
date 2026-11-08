@@ -28,7 +28,7 @@ public class FileImportTest {
         box.extract("good.zip","project",()->true);check(box.read("project/src/hello.java").equals("你好源码"));fails(()->box.extract("good.zip","project",()->true));
         box.pack("project","project.zip",()->true);check(box.archive("project.zip","src/hello.java",0).contains("你好源码"));fails(()->box.pack("project","project/inside.zip",()->true));
         zip(root.resolve("evil.zip"),"../escaped",new byte[]{1});fails(()->box.extract("evil.zip","bad-project",()->true));check(!Files.exists(root.resolve("escaped")));check(!Files.exists(root.resolve("bad-project")));
-        zip(root.resolve("bomb.zip"),"bomb",new byte[17*1024*1024]);fails(()->box.extract("bomb.zip","bomb-project",()->true));check(!Files.exists(root.resolve("bomb-project")));
+        try(ZipOutputStream z=new ZipOutputStream(Files.newOutputStream(root.resolve("bomb.zip")))){z.putNextEntry(new ZipEntry("bomb"));byte[] block=new byte[65536];for(int i=0;i<4112;i++)z.write(block);z.closeEntry();}fails(()->box.extract("bomb.zip","bomb-project",()->true));check(!Files.exists(root.resolve("bomb-project")));
         fails(()->box.extract("good.zip","cancelled",()->false));check(!Files.exists(root.resolve("cancelled")));
         Files.createSymbolicLink(root.resolve("project/link"),root.resolve("good.zip"));fails(()->box.pack("project","with-link.zip",()->true));check(!Files.exists(root.resolve("with-link.zip")));
         System.out.println("File imports/archives: "+checks+" checks passed");

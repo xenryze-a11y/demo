@@ -17,10 +17,13 @@ final class LoopbackTransfer implements AutoCloseable {
     final File file;
     final boolean upload;
     LoopbackTransfer(File file,boolean upload,BooleanSupplier active)throws IOException {
+        this(file,upload,active,120000);
+    }
+    LoopbackTransfer(File file,boolean upload,BooleanSupplier active,int acceptTimeout)throws IOException {
         this.file=file;this.upload=upload;
         if(upload&&file.exists())throw new IOException("目标文件已存在，禁止覆盖");
-        if(!upload&&(!file.isFile()||file.length()>FilesBox.IMPORT_LIMIT))throw new IOException("源文件不存在或超过 64 MiB");
-        server=new ServerSocket();server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"),0));server.setSoTimeout(120000);
+        if(!upload&&(!file.isFile()||file.length()>FilesBox.IMPORT_LIMIT))throw new IOException("源文件不存在或超过 256 MiB");
+        server=new ServerSocket();server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"),0));server.setSoTimeout(acceptTimeout);
         Thread thread=new Thread(()->serve(active),"xiaoxing-file-transfer");thread.setDaemon(true);thread.start();
     }
     String url(){return "http://127.0.0.1:"+server.getLocalPort()+"/"+token;}
@@ -33,7 +36,7 @@ final class LoopbackTransfer implements AutoCloseable {
             if(upload){
                 long length=-1;
                 for(String line:lines){int colon=line.indexOf(':');if(colon<0)continue;String key=line.substring(0,colon).trim();String value=line.substring(colon+1).trim();if(key.equalsIgnoreCase("Transfer-Encoding"))throw new IOException("不接受分块上传");if(key.equalsIgnoreCase("Content-Length")){if(length!=-1)throw new IOException("重复长度");length=Long.parseLong(value);}}
-                if(length<0||length>FilesBox.IMPORT_LIMIT)throw new IOException("传输超过 64 MiB 或没有容量信息");
+                if(length<0||length>FilesBox.IMPORT_LIMIT)throw new IOException("传输超过 256 MiB 或没有容量信息");
                 File parent=file.getParentFile();if(!parent.isDirectory()&&!parent.mkdirs())throw new IOException("无法创建目录");
                 temporary=File.createTempFile(".transfer-",".part",parent);long remaining=length;
                 try(OutputStream dest=new FileOutputStream(temporary)){byte[] b=new byte[16384];while(remaining>0){if(!active.getAsBoolean())throw new IOException("传输已停止");int n=in.read(b,0,(int)Math.min(b.length,remaining));if(n<0)throw new IOException("文件传输中断");dest.write(b,0,n);remaining-=n;}}

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -22,7 +23,7 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 with tempfile.TemporaryDirectory(prefix='xiaoxing-desktop-test-') as directory:
-    desktop = module.Desktop('a' * 64, Path(directory) / 'profile', os.environ.get('XIAOXING_NOVNC_WEB', '/usr/share/novnc'))
+    desktop = module.Desktop('a' * 64, Path(directory) / 'profile', os.environ.get('XIAOXING_NOVNC_WEB', '/usr/share/novnc'), Path(directory) / 'workspace')
     terminal = None
     try:
         desktop.start()
@@ -91,11 +92,41 @@ with tempfile.TemporaryDirectory(prefix='xiaoxing-desktop-test-') as directory:
                 break
             time.sleep(0.1)
         assert result.read_text() == 'xiaoxing-desktop-ok 小星中文', 'GUI input did not reach the application'
+        script = 'import time\nfor i in range(25):\n print(i,flush=True);time.sleep(0.1)'
+        job = json.loads(request('/jobs', {'kind': 'command', 'command': 'python3 -u -c ' + shlex.quote(script), 'timeout_seconds': 5}))
+        job_path = '/jobs/' + job['id']
+        for _ in range(40):
+            progress = json.loads(request(job_path))
+            if progress['state'] == 'running' and progress['output']:
+                break
+            time.sleep(0.05)
+        request('/screenshot')
+        assert json.loads(request('/control', {'owner': 'user'}))['owner'] == 'user'
+        status_error('/screenshot', None, 409)
+        status_error('/action', {'action': 'key', 'key': 'Return'}, 409)
+        status_error('/jobs', {'kind': 'command', 'command': 'echo must-not-start'}, 400)
+        with opener.open(viewer, timeout=10) as response:
+            assert b'noVNC' in response.read(), 'Human must still be able to view/control VNC'
+        time.sleep(0.2)
+        paused = json.loads(request(job_path))
+        assert paused['paused'] and paused['state'] == 'running'
+        time.sleep(5.3)
+        assert json.loads(request(job_path))['output'] == paused['output'], 'AI command advanced during human takeover'
+        assert json.loads(request('/control', {'owner': 'ai'}))['owner'] == 'ai'
+        status_error('/action', {'action': 'key', 'key': 'Return'}, 400)
+        request('/screenshot')
+        for _ in range(80):
+            progress = json.loads(request(job_path))
+            if progress['state'] in ('completed', 'failed', 'timeout'):
+                break
+            time.sleep(0.1)
+        assert progress['state'] == 'completed' and progress['exit_code'] == 0 and '24' in progress['output'], progress
+        status_error('/jobs', {'kind': 'install', 'packages': ['good;echo injected']}, 400)
         assert json.loads(request('/shutdown', {}))['stopping']
         thread.join(5)
         server.server_close()
         assert not thread.is_alive()
-        print('Live desktop: Xvnc, Xfce, noVNC HTTP, RFB handshake, auth/origin checks, screenshot, click, text input, key press, GUI result and shutdown passed')
+        print('Live desktop: Xvnc/Xfce/noVNC, GUI input, human takeover, blocked AI screenshots/actions/jobs, paused process, resumed job/exit code, stale screenshot rejection and shutdown passed')
     finally:
         if terminal and terminal.poll() is None:
             terminal.terminate()

@@ -8,7 +8,7 @@
 - Debian：`linux_exec`，根工作目录 `/root/xiaoxing-workspace`，用于 Python / Node / Linux 开发和测试。
 - Termux 原生：`termux_exec`，根工作目录 `$HOME/xiaoxing-workspace`，用于手机本地 APK 构建。Termux 的 aapt2 / d8 / JDK 不能直接放进 Debian 运行。
 - `linux_push` / `linux_pull` 默认选择 Debian；传 `native_termux=true` 选择 Termux。
-- 文件传输通过随机一次性令牌、本机环回接口、最多 64 MiB 的短时服务；不依赖公共下载链接或共享存储权限。目标必须使用新路径。
+- 文件传输通过随机一次性令牌、本机环回接口、最多 256 MiB 的短时服务；不依赖公共下载链接或共享存储权限。目标必须使用新路径。
 
 ## 建议执行流程
 
@@ -29,15 +29,21 @@ python -m zipfile -e source.zip project-edit
 ```sh
 source "$HOME/.config/xiaoxing-build.env"
 cd project-edit
-BUILD_VARIANT=preview bash build.sh
+BUILD_VARIANT=personal bash build.sh
 ```
 
 命令有 120 秒上限。初次下载/安装工具由用户在 Termux 单独运行；不能把超时当作构建成功。构建慢时按 build.sh 阶段拆分执行，保留实际退出码。
 
-8. `linux_pull(path="project-edit/dist/Xiaoxing-Agent-0.4.0-preview.apk", target="outputs/modified-preview.apk", native_termux=true)`。
+8. `linux_pull(path="project-edit/dist/Xiaoxing-Agent-0.5.0-personal.apk", target="outputs/modified-preview.apk", native_termux=true)`。
 9. 用户从「文件」导出 APK，再由 Android 系统安装。模型不能静默覆盖自身进程。构建成功与安装成功、真机功能通过分别报告。
 
 APK 版本号与输出名目前在 manifest / build.sh 中；后续升级时同步调整。`tools/bundle-source.py` 会把修改后的源码再放进新 APK，以便下次接着维护。
+
+## 手机上的个人签名与安装
+
+默认建议自行维护者首次用 `BUILD_VARIANT=personal`，包名 `app.xen.xiaoxing.personal`。脚本在 Termux 的 `$HOME/.local/share/xiaoxing-signing/personal.jks` 生成并保留用户自己的签名；后续工程目录变化也复用它。首次个人版与官方 preview 分开，需单独填写模型配置、授权并停止旧桌面会话，再连接电脑；之后使用同一签名覆盖个人版即可。签名不会放进 APK 或源码 ZIP，私下备份这个文件。电脑系统与工作区在 Termux 中保留。
+
+完整 APK 包含约 171 MiB 的系统，但 `project_source` 只提取 App 可编辑源码，不重复系统镜像。已有电脑可继续复用；全新安装的源码构建按 `assets/offline-desktop.json` 从同一 Release 获取校验匹配的系统。要重建离线完整版，先把系统包放在 `assets/offline/desktop-arm64.tar.xz`。
 
 ## 原签名与安装
 

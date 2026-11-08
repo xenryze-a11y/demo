@@ -21,7 +21,8 @@ final class LinuxCommands {
         "token,limit,command=sys.argv[1],int(sys.argv[2]),sys.argv[3]\n"+
         "cache=pathlib.Path(os.environ.get('XIAOXING_CACHE_DIR',str(pathlib.Path.home()/'.cache'/'xiaoxing-agent')));cache.mkdir(parents=True,exist_ok=True)\n"+
         "pidfile=cache/(token+'.pid');buf=bytearray();total=[0]\n"+
-        "argv=['bash','-lc',command] if len(sys.argv)>4 and sys.argv[4]=='termux' else ['proot-distro','login','xiaoxing','--','/bin/bash','-lc',command]\n"+
+        "container=sys.argv[5] if len(sys.argv)>5 else 'xiaoxing'\n"+
+        "argv=['bash','-lc',command] if len(sys.argv)>4 and sys.argv[4]=='termux' else ['proot-distro','login',container,'--','/bin/bash','-lc',command]\n"+
         "p=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,start_new_session=True)\n"+
         "pidfile.write_text(str(p.pid))\n"+
         "def read():\n"+

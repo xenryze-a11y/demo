@@ -9,7 +9,7 @@ import java.util.zip.*;
 
 /** Deliberately scoped to a dedicated workspace, never the app settings directory. */
 public final class FilesBox {
-    public static final long IMPORT_LIMIT=64L*1024*1024;
+    public static final long IMPORT_LIMIT=256L*1024*1024;
     public static final int TEXT_PAGE=10000;
     private final File root;
     public FilesBox(File root) throws IOException { this.root=root.getCanonicalFile(); if(!root.isDirectory()&&!root.mkdirs())throw new IOException("无法创建工作目录"); }
@@ -24,7 +24,7 @@ public final class FilesBox {
     public String readPage(String path,int offset,int limit) throws IOException {
         File f=resolve(path);if(!f.isFile())throw new IOException("文件不存在");
         if(offset<0||offset>IMPORT_LIMIT)throw new IOException("offset 超出范围");
-        if(f.length()>IMPORT_LIMIT)throw new IOException("文件超过 64 MiB");
+        if(f.length()>IMPORT_LIMIT)throw new IOException("文件超过 256 MiB");
         try(InputStream in=new FileInputStream(f)){return page(in,offset,limit,"文件 "+path+" · "+f.length()+" 字节");}
     }
     private static String page(InputStream in,int offset,int limit,String label)throws IOException {
@@ -45,7 +45,7 @@ public final class FilesBox {
         if(safe.isEmpty()||safe.equals(".")||safe.equals(".."))safe="file";
         if(safe.length()>120)safe=safe.substring(0,100)+(safe.lastIndexOf('.')>safe.length()-15?safe.substring(safe.lastIndexOf('.')):"");
         String path="uploads/"+UUID.randomUUID()+"/"+safe;File dest=resolve(path);
-        if(root.getUsableSpace()<IMPORT_LIMIT+8*1024*1024)throw new IOException("可用空间不足，请至少保留 72 MiB");
+        if(root.getUsableSpace()<IMPORT_LIMIT+8*1024*1024)throw new IOException("可用空间不足，请至少保留 264 MiB");
         if(!dest.getParentFile().mkdirs())throw new IOException("无法创建导入目录");
         File partial=new File(dest.getParentFile(),".import.part");
         try{copyLimited(in,partial,IMPORT_LIMIT,active);Files.move(partial.toPath(),dest.toPath());return path;}
@@ -58,10 +58,10 @@ public final class FilesBox {
     }
     public String stat(String path)throws IOException {
         File f=resolve(path);if(!f.exists())throw new IOException("文件不存在");
-        return "路径："+path+"\n类型："+(f.isDirectory()?"目录":"文件")+"\n大小："+f.length()+" 字节\n工作区可用："+root.getUsableSpace()+" 字节\n导入上限：64 MiB；读取每页最多 10000 字符；APK/ZIP 使用 inspect_archive。";
+        return "路径："+path+"\n类型："+(f.isDirectory()?"目录":"文件")+"\n大小："+f.length()+" 字节\n工作区可用："+root.getUsableSpace()+" 字节\n导入上限：256 MiB；读取每页最多 10000 字符；APK/ZIP 使用 inspect_archive。";
     }
     public String archive(String path,String entry,int offset)throws IOException {
-        File f=resolve(path);if(!f.isFile()||f.length()>IMPORT_LIMIT)throw new IOException("归档不存在或超过 64 MiB");
+        File f=resolve(path);if(!f.isFile()||f.length()>IMPORT_LIMIT)throw new IOException("归档不存在或超过 256 MiB");
         try(ZipFile zip=new ZipFile(f)){
             if(entry!=null&&!entry.isEmpty()){
                 ZipEntry item=zip.getEntry(entry);if(item==null||item.isDirectory())throw new IOException("归档中没有此文件");
@@ -78,7 +78,7 @@ public final class FilesBox {
     /** Extract to a new directory only. Bounded even when ZIP metadata lies. */
     public String extract(String path,String target,BooleanSupplier active)throws IOException {
         File dir=resolve(target);if(dir.exists()||dir.equals(root))throw new IOException("目标必须是不存在的新目录，避免覆盖已有工程");
-        File archive=resolve(path);if(!archive.isFile()||archive.length()>IMPORT_LIMIT)throw new IOException("归档不存在或超过 64 MiB");
+        File archive=resolve(path);if(!archive.isFile()||archive.length()>IMPORT_LIMIT)throw new IOException("归档不存在或超过 256 MiB");
         if(!dir.mkdirs())throw new IOException("无法创建目标目录");long total=0;int count=0;
         try(ZipFile zip=new ZipFile(archive)){
             Enumeration<? extends ZipEntry> entries=zip.entries();
@@ -90,7 +90,7 @@ public final class FilesBox {
                 if(e.isDirectory()){if(!f.isDirectory()&&!f.mkdirs())throw new IOException("创建目录失败");continue;}
                 if(f.exists())throw new IOException("归档条目重复");
                 if(!f.getParentFile().isDirectory()&&!f.getParentFile().mkdirs())throw new IOException("创建目录失败");
-                try(InputStream in=zip.getInputStream(e)){total+=copyLimited(in,f,Math.min(IMPORT_LIMIT-total,16*1024*1024),active);}
+                try(InputStream in=zip.getInputStream(e)){total+=copyLimited(in,f,Math.min(IMPORT_LIMIT-total,IMPORT_LIMIT),active);}
             }
             return "已提取 "+count+" 个条目 / "+total+" 字节到 "+target+"。未执行其中代码；请先阅读工程说明。";
         }catch(IOException|RuntimeException e){removeTree(dir);throw e;}
@@ -103,7 +103,7 @@ public final class FilesBox {
         long[] total={0,0};
         try(ZipOutputStream zip=new ZipOutputStream(new FileOutputStream(dest))){packTree(dir,dir,zip,total,active);}
         catch(IOException|RuntimeException e){dest.delete();throw e;}
-        if(dest.length()>IMPORT_LIMIT){dest.delete();throw new IOException("压缩包超过 64 MiB");}
+        if(dest.length()>IMPORT_LIMIT){dest.delete();throw new IOException("压缩包超过 256 MiB");}
         return "已打包到 "+target+" · "+dest.length()+" 字节。可用 linux_push 传入 Linux，或从文件面板导出。";
     }
     private void packTree(File base,File dir,ZipOutputStream zip,long[] total,BooleanSupplier active)throws IOException {
@@ -113,7 +113,7 @@ public final class FilesBox {
             if(!child.getCanonicalPath().equals(child.getAbsolutePath()))throw new IOException("不打包符号链接");
             if(++total[0]>3000)throw new IOException("打包条目超过 3000");
             if(child.isDirectory()){packTree(base,child,zip,total,active);continue;}
-            total[1]+=child.length();if(total[1]>IMPORT_LIMIT)throw new IOException("打包源文件超过 64 MiB");
+            total[1]+=child.length();if(total[1]>IMPORT_LIMIT)throw new IOException("打包源文件超过 256 MiB");
             zip.putNextEntry(new ZipEntry(base.toPath().relativize(child.toPath()).toString().replace(File.separatorChar,'/')));
             try(InputStream in=new FileInputStream(child)){byte[] b=new byte[16384];int n;while((n=in.read(b))!=-1){if(!active.getAsBoolean())throw new IOException("打包已停止");zip.write(b,0,n);}}zip.closeEntry();
         }

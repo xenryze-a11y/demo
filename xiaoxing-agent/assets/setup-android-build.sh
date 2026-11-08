@@ -7,7 +7,7 @@ pkg install -y openjdk-21 aapt2 d8 apksigner python curl coreutils
 python <<'PY'
 from pathlib import Path
 from zipfile import ZipFile
-import hashlib, urllib.request
+import hashlib, subprocess
 root=Path.home()/'.local/share/xiaoxing-android'
 root.mkdir(parents=True,exist_ok=True)
 archive=root/'platform-35_r02.zip'
@@ -15,12 +15,15 @@ expected='0bb560a90a7a2cbd0dd8348224d518b638fe7949'
 def valid():return archive.is_file() and hashlib.sha1(archive.read_bytes()).hexdigest()==expected
 if not valid():
     temp=archive.with_suffix('.partial')
-    with urllib.request.urlopen('https://dl.google.com/android/repository/platform-35_r02.zip',timeout=60) as response,temp.open('wb') as out:
-        size=0
-        while chunk:=response.read(1024*1024):
-            size+=len(chunk)
-            if size>70*1024*1024:raise RuntimeError('Unexpected download size')
-            out.write(chunk)
+    sources=(
+        'https://dl.google.com/android/repository/platform-35_r02.zip',
+        'https://redirector.gvt1.com/edgedl/android/repository/platform-35_r02.zip',
+    )
+    for source in sources:
+        result=subprocess.run(['curl','--fail','--location','--show-error','--retry','3','--retry-all-errors',
+            '--connect-timeout','20','--max-time','300','--continue-at','-',source,'-o',str(temp)])
+        if result.returncode==0:break
+    else:raise RuntimeError('SDK 下载连接未完成。已保留已有工具；可更换网络后重试。独立电脑日常运行不需要 Android SDK。')
     temp.replace(archive)
 if not valid():raise RuntimeError('Google platform package checksum mismatch')
 with ZipFile(archive) as z:

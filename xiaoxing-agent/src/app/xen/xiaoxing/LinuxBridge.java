@@ -17,12 +17,14 @@ final class LinuxBridge {
     static boolean granted(Context c){return c.checkSelfPermission(PERMISSION)==PackageManager.PERMISSION_GRANTED;}
     static String status(Context c){return !installed(c)?"尚未安装 Termux":!granted(c)?"Termux 已安装 · 等待运行命令授权":"Termux 已安装且已授权 · 请检测容器";}
     static String execute(Context ctx,String command,int seconds)throws Exception {
-        return execute(ctx,command,seconds,false);
+        return execute(ctx,command,seconds,false,"xiaoxing");
     }
     static String executeNative(Context ctx,String command,int seconds)throws Exception {
-        return execute(ctx,command,seconds,true);
+        return execute(ctx,command,seconds,true,"xiaoxing");
     }
-    private static String execute(Context ctx,String command,int seconds,boolean nativeTermux)throws Exception {
+    static String executeContainer(Context ctx,String command,int seconds,String container)throws Exception {return execute(ctx,command,seconds,false,container);}
+    private static String execute(Context ctx,String command,int seconds,boolean nativeTermux,String container)throws Exception {
+        if(container==null||!container.matches("[a-z0-9-]{1,40}"))throw new Exception("无效的 Linux 工作区名称");
         Context c=ctx.getApplicationContext();
         if(!installed(c))throw new Exception("请先到 Linux 面板安装 Termux，并运行初始化指令。");
         if(!granted(c))throw new Exception("请在 Linux 面板授予「在 Termux 环境中运行命令」权限。");
@@ -32,7 +34,7 @@ final class LinuxBridge {
         try{
             if(command==null||command.indexOf('\0')>=0||command.length()>24000)throw new Exception("命令为空、含空字符或过长");
             String prepared=nativeTermux?"mkdir -p \"$HOME/xiaoxing-workspace\" && cd \"$HOME/xiaoxing-workspace\" && "+command:LinuxCommands.containerCommand(command);
-            Intent i=intent(PREFIX+"python",new String[]{"-c",LinuxCommands.RUNNER,token,String.valueOf(LinuxCommands.timeout(seconds)),prepared,nativeTermux?"termux":"debian"});
+            Intent i=intent(PREFIX+"python",new String[]{"-c",LinuxCommands.RUNNER,token,String.valueOf(LinuxCommands.timeout(seconds)),prepared,nativeTermux?"termux":"debian",container});
             i.putExtra("com.termux.RUN_COMMAND_PENDING_INTENT",pi);c.startService(i);
             long deadline=SystemClock.elapsedRealtime()+(LinuxCommands.timeout(seconds)+25)*1000L;
             while(!f.isDone()){

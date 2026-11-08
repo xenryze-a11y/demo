@@ -28,9 +28,9 @@ class GamePreviewActivity {static String report(){return "not used";}}
 class Secrets {static String get(Context c){return "sk-offline-protocol-test";}}
 class SessionStore {static JSONArray saved;static void save(Context c,String name,JSONArray data){saved=new JSONArray(data.toString());}}
 class LinuxBridge {static void cancel(){}static String execute(Context c,String cmd,int seconds){Agent.running=false;return "stopped in test";}static String executeNative(Context c,String cmd,int seconds){return execute(c,cmd,seconds);}}
-class LinuxFiles {static String transfer(Context c,FilesBox b,String p,String t,boolean push,boolean nativeTermux){return "not used";}}
+class LinuxFiles {static String transfer(Context c,FilesBox b,String p,String t,boolean push,boolean nativeTermux,String... container){return "not used";}}
 class SourceBundle {static String prepare(Context c,FilesBox b,String t){return "not used";}}
-class DesktopBridge {static void cancelRequest(){}static String json(Context c,String p,JSONObject b){return "{}";}static String screenshot(Context c){return "not used";}}
+class DesktopBridge {static void cancelRequest(){}static String json(Context c,String p,JSONObject b)throws java.io.IOException{return "{}";}static String screenshot(Context c){return "not used";}}
 class PhoneService {static PhoneService instance;void hideStop(){}void showStop(){}String call(String n,JSONObject a){return "not used";}}
 '''
 }
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='xiaoxing-protocol-') as directory:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         files.append(str(path))
-    for name in ('Agent', 'ApiClient', 'ApiDiagnostics', 'FilesBox', 'WebTools', 'ConversationWindow'):
+    for name in ('Agent', 'ApiClient', 'ApiDiagnostics', 'FilesBox', 'WebTools', 'ConversationWindow', 'HumanControl'):
         files.append(str(root / 'src/app/xen/xiaoxing' / (name + '.java')))
     files.append(str(root / 'tests/AgentProtocolTest.java'))
     subprocess.run(['javac', '--release', '8', '-cp', sys.argv[1], '-d', str(temp / 'classes'), *files], check=True)
