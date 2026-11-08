@@ -7,3 +7,6 @@ dist/
 local.properties
 __pycache__/
 *.pyc
+
+# Complete OS image is distributed in GitHub Releases, never inside the source bundle.
+assets/offline/*.xz
